@@ -1,4 +1,6 @@
-package org.dhis2.customui
+package org.dhis2.commons.periods.data
+
+
 
 import java.util.*
 
@@ -113,7 +115,7 @@ object EthiopianDateConverter {
         val dayOfYear = remainingDays % 365
 
         val month = (dayOfYear / 30) + 1
-        val day = (dayOfYear % 30) + 1
+        val day = (dayOfYear % 30) + 1+1
 
         return EthiopianDate(year, month, day)
     }

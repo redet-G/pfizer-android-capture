@@ -297,7 +297,7 @@ object EthiopianDateUtils {
         futurePeriods: Int
     ): List<EthiopianPeriod> {
         val periods = mutableListOf<EthiopianPeriod>()
-        val aprilMonth = 8 // Miazia (April)
+        val aprilMonth = 9 // Miazia (April)
         val currentPeriod = if (baseDate.month < aprilMonth) 1 else 2
         val endPeriod = if (baseDate.year == currentYear) min(currentPeriod + futurePeriods, 2) else 2
 
@@ -360,7 +360,7 @@ object EthiopianDateUtils {
 
         return (minYear..currentYear + futureYears).map { year ->
             // Start date is always Meskerem 1 (month 1, day 1)
-            val startDate = EthiopianDateConverter.ethiopianToGregorian(year, 1, 1)
+            val startDate = EthiopianDateConverter.ethiopianToGregorian(year, 4, 24)
 
             // End date is Pagume 5/6 (month 13)
             val daysInPagume = if (year % 4 == 3) 6 else 5

@@ -1,17 +1,11 @@
 package org.dhis2.commons.resources
 
 import org.apache.commons.text.WordUtils
+import org.dhis2.commons.periods.data.EthiopianDateConverter
 import org.hisp.dhis.android.core.D2
 import org.hisp.dhis.android.core.period.PeriodType
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 import java.util.regex.Pattern
-
-const val DATE_FORMAT_EXPRESSION = "yyyy-MM-dd"
-const val MONTHLY_FORMAT_EXPRESSION = "MMM yyyy"
-const val YEARLY_FORMAT_EXPRESSION = "yyyy"
-const val SIMPLE_DATE_FORMAT = "dd/MM/yyyy"
 
 class DhisPeriodUtils(
     d2: D2,
@@ -22,45 +16,42 @@ class DhisPeriodUtils(
 
     private val periodHelper = d2.periodModule().periodHelper()
 
+    private val ethiopianMonths = listOf(
+        "Meskerem", "Tikimt", "Hidar", "Tahsas",
+        "Tir", "Yekatit", "Megabit", "Miazia",
+        "Ginbot", "Sene", "Hamle", "Nehase", "Pagume"
+    )
+
     fun getPeriodUIString(periodType: PeriodType?, date: Date, locale: Locale): String {
-        val formattedDate: String
         var periodString = defaultPeriodLabel
-        val period =
-            periodHelper.blockingGetPeriodForPeriodTypeAndDate(periodType ?: PeriodType.Daily, date)
-        when (periodType) {
+        val period = periodHelper.blockingGetPeriodForPeriodTypeAndDate(periodType ?: PeriodType.Daily, date)
+
+        // Convert start and end dates to Ethiopian
+        val startEthio = EthiopianDateConverter.gregorianToEthiopian(period.startDate()!!)
+        val endEthio = EthiopianDateConverter.gregorianToEthiopian(period.endDate()!!)
+
+        val formattedDate: String = when (periodType) {
             PeriodType.Weekly,
             PeriodType.WeeklyWednesday,
             PeriodType.WeeklyThursday,
             PeriodType.WeeklySaturday,
-            PeriodType.WeeklySunday,
-            -> {
+            PeriodType.WeeklySunday -> {
                 periodString = defaultWeeklyLabel
-                formattedDate = periodString.format(
-                    weekOfTheYear(periodType, period.periodId()!!),
-                    SimpleDateFormat(DATE_FORMAT_EXPRESSION, locale).format(period.startDate()!!),
-                    SimpleDateFormat(DATE_FORMAT_EXPRESSION, locale).format(period.endDate()!!),
+                periodString.format(
+                    weekOfTheYear(periodType!!, period.periodId()!!),
+                    "${ethiopianMonths[startEthio.month - 1]} ${startEthio.day}, ${startEthio.year}",
+                    "${ethiopianMonths[endEthio.month - 1]} ${endEthio.day}, ${endEthio.year}",
                 )
             }
+
             PeriodType.BiWeekly -> {
                 periodString = defaultBiWeeklyLabel
-                val firstWeekPeriod = periodHelper.blockingGetPeriodForPeriodTypeAndDate(
-                    PeriodType.Weekly,
-                    period.startDate()!!,
-                )
-                val secondWeekPeriod = periodHelper.blockingGetPeriodForPeriodTypeAndDate(
-                    PeriodType.Weekly,
-                    period.endDate()!!,
-                )
-                formattedDate = periodString.format(
-                    weekOfTheYear(PeriodType.Weekly, firstWeekPeriod.periodId()!!),
-                    SimpleDateFormat(YEARLY_FORMAT_EXPRESSION, locale).format(period.startDate()!!),
-                    weekOfTheYear(PeriodType.Weekly, secondWeekPeriod.periodId()!!),
-                    SimpleDateFormat(YEARLY_FORMAT_EXPRESSION, locale).format(period.endDate()!!),
-                )
+                "${ethiopianMonths[startEthio.month - 1]} ${startEthio.day} - " +
+                        "${ethiopianMonths[endEthio.month - 1]} ${endEthio.day}, ${endEthio.year}"
             }
-            PeriodType.Monthly ->
-                formattedDate =
-                    SimpleDateFormat(MONTHLY_FORMAT_EXPRESSION, locale).format(period.startDate()!!)
+
+            PeriodType.Monthly -> "${ethiopianMonths[startEthio.month - 1]} ${startEthio.year}"
+
             PeriodType.BiMonthly,
             PeriodType.Quarterly,
             PeriodType.QuarterlyNov,
@@ -68,29 +59,22 @@ class DhisPeriodUtils(
             PeriodType.SixMonthlyApril,
             PeriodType.FinancialApril,
             PeriodType.FinancialJuly,
-            PeriodType.FinancialOct,
-            -> formattedDate = periodString.format(
-                SimpleDateFormat(MONTHLY_FORMAT_EXPRESSION, locale).format(period.startDate()!!),
-                SimpleDateFormat(MONTHLY_FORMAT_EXPRESSION, locale).format(period.endDate()!!),
-            )
-            PeriodType.Yearly ->
-                formattedDate =
-                    SimpleDateFormat(YEARLY_FORMAT_EXPRESSION, locale).format(period.startDate()!!)
-            else ->
-                formattedDate =
-                    SimpleDateFormat(SIMPLE_DATE_FORMAT, locale).format(period.startDate()!!)
+            PeriodType.FinancialOct -> {
+                "${ethiopianMonths[startEthio.month ]} ${startEthio.year} - " +
+                        "${ethiopianMonths[endEthio.month - 1]} ${endEthio.year}"
+            }
+
+            PeriodType.Yearly -> startEthio.year.toString()
+
+            else -> "${startEthio.day} ${ethiopianMonths[startEthio.month - 1]}, ${startEthio.year}"
         }
+
         return WordUtils.capitalize(formattedDate)
     }
 
     private fun weekOfTheYear(periodType: PeriodType, periodId: String): Int {
-        val pattern =
-            Pattern.compile(periodType.pattern)
+        val pattern = Pattern.compile(periodType.pattern)
         val matcher = pattern.matcher(periodId)
-        var weekNumber = 0
-        if (matcher.find()) {
-            weekNumber = matcher.group(2)?.toInt() ?: 0
-        }
-        return weekNumber
+        return if (matcher.find()) matcher.group(2)?.toInt() ?: 0 else 0
     }
 }
