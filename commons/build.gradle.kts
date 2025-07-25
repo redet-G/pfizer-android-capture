@@ -63,6 +63,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.icu4j)
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
     api(project(":ui-components"))
     implementation(project(":commonskmm"))

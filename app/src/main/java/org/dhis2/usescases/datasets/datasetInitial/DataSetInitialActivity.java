@@ -149,23 +149,36 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
     public void showPeriodSelector(PeriodType periodType, Integer openFuturePeriods) {
         DataSetPeriodDialog dialog =
                 new DataSetPeriodDialog(getDataSetUid(), periodType, selectedPeriod, openFuturePeriods);
+
         dialog.setOnDateSelectedListener((date, periodName) -> {
             Calendar calendar = Calendar.getInstance();
             calendar.setTime(date);
             selectedPeriod = calendar.getTime();
+
             String periodLabel = "";
             if (periodType == PeriodType.Daily) {
                 periodLabel = periodUtils.getPeriodUIString(periodType, date, Locale.getDefault());
+
             } else {
                 periodLabel = periodName;
+
             }
+
+
+
+
+
             binding.dataSetPeriodEditText.setText(periodLabel);
+
             checkCatOptionsAreValidForOrgUnit(selectedPeriod);
             checkActionVisivbility();
+
             return Unit.INSTANCE;
         });
+
         dialog.show(getSupportFragmentManager(), DataSetPeriodDialog.class.getSimpleName());
     }
+
 
     private void checkCatOptionsAreValidForOrgUnit(Date selectedPeriod) {
         int index = 0;

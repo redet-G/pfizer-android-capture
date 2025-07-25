@@ -30,6 +30,7 @@
     <string name="tei">TEI</string>
     <string name="info">Info</string>
     <string name="done">Done</string>
+    <string name="confirm">Confirm</string>
 
     <!-- Filters -->
     <string name="filters_active">Filters applying</string>
@@ -94,7 +95,21 @@
     <string name="enrollment_status_completed">Complete</string>
     <string name="enrollment_status_cancelled">Cancelled</string>
     <string name="record_marked_for_deletion">This record is marked for deletion. You can\'t access it.</string>
-
+    <string-array name="ethiopian_months">
+        <item>Meskerem</item>
+        <item>Tikimt</item>
+        <item>Hidar</item>
+        <item>Tahsas</item>
+        <item>Tir</item>
+        <item>Yekatit</item>
+        <item>Megabit</item>
+        <item>Miazia</item>
+        <item>Ginbot</item>
+        <item>Sene</item>
+        <item>Hamle</item>
+        <item>Nehase</item>
+        <item>Pagume</item>
+    </string-array>
     <!-- Periods -->
     <string name="filter_period_today">Today</string>
     <string name="filter_period_yesterday">Yesterday</string>

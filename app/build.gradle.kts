@@ -243,6 +243,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.icu4j)
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
     implementation(project(":dhis_android_analytics"))
     implementation(project(":form"))
