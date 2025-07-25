@@ -82,6 +82,8 @@ internal class DataSetInstanceRepositoryImpl(
             locale = Locale.getDefault(),
             forTags = true,
         )
+        android.util.Log.d("DataSetInstanceRepo", "Gregorian period: ${periodLabel} - ${period.endDate()}")
+
 
         val edition = d2.dataSetModule().dataSetInstanceService().blockingGetEditableStatus(
             dataSetUid,

@@ -1,13 +1,12 @@
 package org.dhis2.usescases.datasets.datasetInitial.periods.ui
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -16,15 +15,17 @@ import org.dhis2.commons.R
 import org.dhis2.commons.date.toUiStringResource
 import org.dhis2.commons.dialogs.bottomsheet.bottomSheetInsets
 import org.dhis2.commons.dialogs.bottomsheet.bottomSheetLowerPadding
-import org.dhis2.commons.periods.ui.PeriodSelectorContent
+import org.dhis2.customui.EthiopianDatePickerDialog
+import org.dhis2.customui.EthiopianDateUtils
+import org.dhis2.customui.EthiopianPeriodSelectorContent
 import org.dhis2.usescases.datasets.datasetInitial.periods.DatasetPeriodViewModel
 import org.hisp.dhis.android.core.period.PeriodType
 import org.hisp.dhis.mobile.ui.designsystem.component.BottomSheetShell
-import org.hisp.dhis.mobile.ui.designsystem.component.DatePicker
 import org.hisp.dhis.mobile.ui.designsystem.component.state.BottomSheetShellUIState
 import org.hisp.dhis.mobile.ui.designsystem.theme.DHIS2Theme
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import java.util.Calendar
+import org.dhis2.customui.EthiopianDateConverter
 import java.util.Date
 
 class DataSetPeriodDialog(
@@ -36,7 +37,7 @@ class DataSetPeriodDialog(
 
     lateinit var onDateSelectedListener: (Date, String) -> Unit
 
-    val viewModel by viewModel<DatasetPeriodViewModel>()
+    private val viewModel by viewModel<DatasetPeriodViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,54 +45,44 @@ class DataSetPeriodDialog(
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
         return ComposeView(requireContext()).apply {
-            setViewCompositionStrategy(
-                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed,
-            )
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 DHIS2Theme {
-                    if (periodType == PeriodType.Daily &&
+                    // Get current Ethiopian year from today
+                    val today = Date()
+                    val ethToday = EthiopianDateConverter.gregorianToEthiopian(today)
+                    val maxYear = ethToday.year
+
+                    if (
+                        periodType == PeriodType.Daily &&
                         !viewModel.verifyIfHasDataInputPeriods(dataset)
                     ) {
-                        val calendar = Calendar.getInstance()
-                        calendar.time =
-                            viewModel.getPeriodMaxDate(periodType, openFuturePeriods + 1)
+                        EthiopianDatePickerDialog(
+                            initialDate = selectedDate ?: Date(),
+                            maxYear = maxYear,
+                            onDateSelected = { date, _ ->
+                                val label = EthiopianDateUtils.formatEthiopianDate(date)
 
-                        val state = rememberDatePickerState(
-                            initialSelectedDateMillis = selectedDate?.time ?: Date().time,
-                            yearRange = 1970..calendar[Calendar.YEAR],
-                            selectableDates = object : SelectableDates {
-                                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                                    return utcTimeMillis <= calendar.timeInMillis
-                                }
+                                onDateSelectedListener(date, label)
 
-                                override fun isSelectableYear(year: Int): Boolean {
-                                    return year <= calendar[Calendar.YEAR]
-                                }
-                            },
-                        )
-
-                        DatePicker(
-                            title = getString(periodType.toUiStringResource()),
-                            state = state,
-                            acceptText = getString(R.string.accept),
-                            cancelText = getString(R.string.cancel),
-                            onCancel = { dismiss() },
-                            onConfirm = { date ->
-                                date.selectedDateMillis?.let {
-                                    onDateSelectedListener(Date(it), "")
-                                }
                                 dismiss()
                             },
-                            onDismissRequest = { dismiss() },
+                            onDismiss = { dismiss() }
                         )
+
                     } else {
+
+
+
                         val scrollState = rememberLazyListState()
+
                         BottomSheetShell(
                             uiState = BottomSheetShellUIState(
                                 title = getString(periodType.toUiStringResource()),
@@ -102,19 +93,20 @@ class DataSetPeriodDialog(
                             windowInsets = { bottomSheetInsets() },
                             contentScrollState = scrollState,
                             content = {
-                                val periods = viewModel.fetchPeriods(
-                                    dataset,
-                                    periodType,
-                                    selectedDate,
-                                    openFuturePeriods,
-                                ).collectAsLazyPagingItems()
-                                PeriodSelectorContent(
-                                    periods = periods,
+                                EthiopianPeriodSelectorContent(
+                                    periodType = periodType,
+                                    dataset = dataset,
+                                    selectedDate = selectedDate,
+                                    openFuturePeriods = openFuturePeriods,
                                     scrollState = scrollState,
-                                ) { period ->
-                                    onDateSelectedListener(period.startDate, period.name)
-                                    dismiss()
-                                }
+                                    onPeriodSelected = { date, label ->
+                                        onDateSelectedListener(date, label)
+                                        Log.d("DataSetPeriodDialog", "Selected Gregorian Date: $date")
+                                        Log.d("DataSetPeriodDialog", "Selected Ethiopian Label: $label")
+                                        dismiss()
+                                    },
+                                    onDismiss = { dismiss() }
+                                )
                             },
                         )
                     }
@@ -122,4 +114,6 @@ class DataSetPeriodDialog(
             }
         }
     }
+
 }
+

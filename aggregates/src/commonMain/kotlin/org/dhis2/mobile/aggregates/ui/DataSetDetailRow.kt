@@ -49,6 +49,8 @@ internal fun DataSetDetails(
     editable: Boolean = false,
     dataSetDetails: DataSetDetails,
 ) {
+
+
     val titleDetails = dataSetDetails.customTitle
     val columnContentAlignment = getColumContentAlignment(titleDetails.textAlignment)
     val rowContentAlignment = getRowContentAlignment(titleDetails.textAlignment)

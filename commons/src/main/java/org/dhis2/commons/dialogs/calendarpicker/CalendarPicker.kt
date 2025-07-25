@@ -11,13 +11,15 @@ import android.widget.LinearLayout
 import androidx.databinding.BindingAdapter
 import org.dhis2.commons.R
 import org.dhis2.commons.databinding.CalendarPickerViewBinding
+import org.dhis2.commons.date.EthiopianDateConverter
+import org.dhis2.commons.dialogs.ethiopian.EthiopianDatePickerDialog
 import org.dhis2.commons.dialogs.calendarpicker.di.CalendarPickerComponentProvider
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
 
 class CalendarPicker(
-    context: Context,
+    context: Context
 ) : Dialog(context) {
 
     @Inject
@@ -89,8 +91,12 @@ class CalendarPicker(
         val dialog = dialogBuilder().create()
 
         binding.changeCalendarBtn.setOnClickListener {
-            repository.setPickerStyle(repository.isDatePickerStyle())
-            datePickerVisibility(repository.isDatePickerStyle())
+            if (repository.isEthiopianEnabled()) {
+                showEthiopianDatePicker()
+            } else {
+                repository.setPickerStyle(!repository.isDatePickerStyle())
+                datePickerVisibility(repository.isDatePickerStyle())
+            }
         }
 
         binding.clearBtn.setOnClickListener {
@@ -118,7 +124,6 @@ class CalendarPicker(
             binding.clearBtn.text = context.getString(R.string.next)
         }
         builder.setView(binding.root)
-
         return builder
     }
 
@@ -172,6 +177,36 @@ class CalendarPicker(
             datePicker.maxDate = it.time
             calendarPicker.maxDate = it.time
         }
+    }
+
+    /**
+     * Ethiopian Date Picker Integration
+     */
+    private fun showEthiopianDatePicker() {
+        val currentDate = initialDate ?: Date()
+        val calendar = Calendar.getInstance().apply { time = currentDate }
+        val (ethYear, ethMonth, ethDay) = EthiopianDateConverter.toEthiopian(calendar)
+
+        val ethiopianPicker = EthiopianDatePickerDialog(context, ethYear, ethMonth, ethDay) { ethDate ->
+            val gregDate = EthiopianDateConverter.toGregorian(
+                ethDate.year,
+                ethDate.month,
+                ethDate.day
+            )
+
+            datePicker.updateDate(
+                gregDate.get(Calendar.YEAR),
+                gregDate.get(Calendar.MONTH),
+                gregDate.get(Calendar.DAY_OF_MONTH)
+            )
+
+            calendarPicker.updateDate(
+                gregDate.get(Calendar.YEAR),
+                gregDate.get(Calendar.MONTH),
+                gregDate.get(Calendar.DAY_OF_MONTH)
+            )
+        }
+        ethiopianPicker.show()
     }
 }
 

@@ -11,6 +11,22 @@
         <item quantity="one">Error</item>
         <item quantity="other">Errors</item>
     </plurals>
+    <string-array name="ethiopian_months">
+        <item>Meskerem</item>
+        <item>Tikimt</item>
+        <item>Hidar</item>
+        <item>Tahsas</item>
+        <item>Tir</item>
+        <item>Yekatit</item>
+        <item>Megabit</item>
+        <item>Miazia</item>
+        <item>Ginbot</item>
+        <item>Sene</item>
+        <item>Hamle</item>
+        <item>Nehase</item>
+        <item>Pagume</item>
+    </string-array>
+
     <string name="error_wrong_server_url">Wrong server url</string>
     <string name="error_wrong_credentials">Wrong credentials</string>
     <string name="error_unexpected_error">Unexpected error</string>
@@ -995,4 +1011,7 @@
     <string name="complete_enrollment_label">Complete %s</string>
     <string name="deactivate_enrollment_label">Deactivate %s</string>
     <string name="reopen_enrollment_label">Re-open %s</string>
+    <string name="confirm">Confirm</string>
+
+
 </resources>
