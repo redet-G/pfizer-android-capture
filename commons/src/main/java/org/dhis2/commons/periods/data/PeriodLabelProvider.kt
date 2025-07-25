@@ -1,9 +1,6 @@
 package org.dhis2.commons.periods.data
 
 import android.util.Log
-import com.ibm.icu.util.EthiopicCalendar
-import org.apache.commons.text.WordUtils
-import org.dhis2.commons.periods.model.FROM_TO_LABEL
 import org.hisp.dhis.android.core.period.PeriodType
 import java.text.SimpleDateFormat
 import java.util.*
@@ -11,7 +8,6 @@ import java.util.regex.Pattern
 
 class PeriodLabelProvider {
 
-    // Ethiopian month names in English
     private val ethiopianMonthNames = listOf(
         "Meskerem", "Tikimt", "Hidar", "Tahsas",
         "Tir", "Yekatit", "Megabit", "Miazia",
@@ -21,8 +17,6 @@ class PeriodLabelProvider {
     // Templates
     private val defaultQuarterlyLabel = "Q%d %s (%s - %s)"
     private val defaultWeeklyLabel = "Week %d: %s - %s, %s"
-    private val defaultBiWeeklyLabel = "%s - %s, %s"
-    private val biWeeklyLabelBetweenYears = "%s, %s - %s, %s"
 
     operator fun invoke(
         periodType: PeriodType?,
@@ -30,17 +24,16 @@ class PeriodLabelProvider {
         periodStartDate: Date,
         periodEndDate: Date,
         locale: Locale,
-        forTags: Boolean = false,
+        forTags: Boolean = false
     ): String {
         return try {
-            Log.d("EthiopianDateDebug", "periodtype: $periodType → periodstartdate: $periodStartDate")
+            Log.d("EthiopianDateDebug", "PeriodType: $periodType → Start: $periodStartDate, End: $periodEndDate")
             val periodBetweenYears = periodIsBetweenYears(periodStartDate, periodEndDate)
-            val formattedDate = if (forTags) {
-                tagPeriodLabels(periodType, periodStartDate, periodEndDate, locale, periodBetweenYears)
+            if (forTags) {
+                tagPeriodLabels(periodType, periodStartDate, periodEndDate, periodBetweenYears)
             } else {
-                defaultPeriodLabels(periodType, periodId, periodStartDate, periodEndDate, locale)
+                defaultPeriodLabels(periodType, periodId, periodStartDate, periodEndDate, periodBetweenYears)
             }
-            WordUtils.capitalize(formattedDate)
         } catch (e: Exception) {
             Log.e("PeriodLabelProvider", "Error formatting period", e)
             SimpleDateFormat("MMM d, yyyy", locale).format(periodStartDate)
@@ -51,205 +44,127 @@ class PeriodLabelProvider {
 
     private fun tagPeriodLabels(
         periodType: PeriodType?,
-        periodStartDate: Date,
-        periodEndDate: Date,
-        locale: Locale,
-        periodBetweenYears: Boolean,
+        startDate: Date,
+        endDate: Date,
+        periodBetweenYears: Boolean
     ): String {
         return when (periodType) {
-            PeriodType.Weekly, PeriodType.WeeklyWednesday, PeriodType.WeeklyThursday,
-            PeriodType.WeeklySaturday, PeriodType.WeeklySunday, PeriodType.BiWeekly -> {
-                if (periodBetweenYears) {
-                    FROM_TO_LABEL.format(
-                        safeFormatEthiopianDate(periodStartDate),
-                        safeFormatEthiopianDate(periodEndDate)
-                    )
-                } else {
-                    FROM_TO_LABEL.format(
-                        safeFormatEthiopianDateShort(periodStartDate),
-                        safeFormatEthiopianDate(periodEndDate)
-                    )
-                }
+            PeriodType.BiWeekly -> {
+                val startEthio = EthiopianDateConverter.gregorianToEthiopian(startDate)
+                val endEthio = EthiopianDateConverter.gregorianToEthiopian(endDate)
+
+                // Show both full month names
+                "${ethiopianMonthNames[startEthio.month - 1]} ${startEthio.day.toString().padStart(2, '0')} - " +
+                        "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
             }
 
-            PeriodType.Monthly -> safeFormatEthiopianMonthYearShort(periodStartDate)
+            PeriodType.Monthly -> safeFormatEthiopianMonthYear(startDate)
 
-            PeriodType.BiMonthly, PeriodType.SixMonthly, PeriodType.SixMonthlyApril,
-            PeriodType.Quarterly, PeriodType.QuarterlyNov, PeriodType.FinancialApril,
-            PeriodType.FinancialJuly, PeriodType.FinancialOct -> {
-                if (periodBetweenYears) {
-                    FROM_TO_LABEL.format(
-                        safeFormatEthiopianMonthYearShort(periodStartDate),
-                        safeFormatEthiopianMonthYearShort(periodEndDate)
-                    )
-                } else {
-                    FROM_TO_LABEL.format(
-                        safeFormatEthiopianMonthShort(periodStartDate),
-                        safeFormatEthiopianMonthYearShort(periodEndDate)
-                    )
-                }
+            PeriodType.BiMonthly, PeriodType.SixMonthly, PeriodType.Quarterly -> {
+                "${safeFormatEthiopianMonth(startDate)} - ${safeFormatEthiopianMonthYear(endDate)}"
             }
 
-            PeriodType.Yearly -> safeFormatEthiopianYear(periodStartDate)
-            else -> safeFormatEthiopianDate(periodStartDate)
+            PeriodType.FinancialApril,
+            PeriodType.FinancialJuly,
+            PeriodType.FinancialOct -> {
+                val startEthio = EthiopianDateConverter.gregorianToEthiopian(startDate)
+                val endEthio = EthiopianDateConverter.gregorianToEthiopian(endDate)
+                "${ethiopianMonthNames[startEthio.month ]} ${startEthio.year} – " +
+                        "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.year}"
+            }
+
+            PeriodType.Yearly -> safeFormatEthiopianYear(startDate)
+
+            else -> safeFormatEthiopianDate(startDate)
         }
     }
 
     private fun defaultPeriodLabels(
         periodType: PeriodType?,
         periodId: String,
-        periodStartDate: Date,
-        periodEndDate: Date,
-        locale: Locale,
+        startDate: Date,
+        endDate: Date,
+        periodBetweenYears: Boolean
     ): String {
         return when (periodType) {
-
-            PeriodType.Weekly, PeriodType.WeeklyWednesday, PeriodType.WeeklyThursday,
-            PeriodType.WeeklySaturday, PeriodType.WeeklySunday -> {
+            PeriodType.Weekly -> {
                 defaultWeeklyLabel.format(
                     weekOfTheYear(periodType!!, periodId),
-                    safeFormatEthiopianDateShort(periodStartDate),
-                    safeFormatEthiopianDateShort(periodEndDate),
-                    safeFormatEthiopianYear(periodEndDate)
+                    safeFormatEthiopianDateShort(startDate),
+                    safeFormatEthiopianDateShort(endDate),
+                    safeFormatEthiopianYear(endDate)
                 )
             }
 
             PeriodType.BiWeekly -> {
-                if (periodIsBetweenYears(periodStartDate, periodEndDate)) {
-                    biWeeklyLabelBetweenYears.format(
-                        safeFormatEthiopianDateShort(periodStartDate),
-                        safeFormatEthiopianYear(periodStartDate),
-                        safeFormatEthiopianDateShort(periodEndDate),
-                        safeFormatEthiopianYear(periodEndDate))
+                val startEthio = EthiopianDateConverter.gregorianToEthiopian(startDate)
+                val endEthio = EthiopianDateConverter.gregorianToEthiopian(endDate)
+
+                if (startEthio.month == endEthio.month) {
+                    // Same month → Hamle 09–22, 2017
+                    "${ethiopianMonthNames[startEthio.month - 1]} " +
+                            "${startEthio.day.toString().padStart(2, '0')}–${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
                 } else {
-                    defaultBiWeeklyLabel.format(
-                        safeFormatEthiopianDateShort(periodStartDate),
-                        safeFormatEthiopianDateShort(periodEndDate),
-                        safeFormatEthiopianYear(periodEndDate))
+                    // Different months → Hamle 28 – Nehase 10, 2017
+                    "${ethiopianMonthNames[startEthio.month - 1]} ${startEthio.day.toString().padStart(2, '0')} – " +
+                            "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
                 }
             }
 
-            PeriodType.Monthly -> safeFormatEthiopianMonthYear(periodStartDate)
+            PeriodType.Monthly -> safeFormatEthiopianMonthYear(startDate)
 
-            PeriodType.BiMonthly, PeriodType.SixMonthly, PeriodType.SixMonthlyApril -> {
-                FROM_TO_LABEL.format(
-                    safeFormatEthiopianMonth(periodStartDate),
-                    safeFormatEthiopianMonthYear(periodEndDate))
+            PeriodType.BiMonthly, PeriodType.SixMonthly -> {
+                "${safeFormatEthiopianMonth(startDate)} - ${safeFormatEthiopianMonthYear(endDate)}"
             }
 
-            PeriodType.Quarterly, PeriodType.QuarterlyNov -> {
-                val startYear = safeFormatEthiopianYear(periodStartDate)
-                val endYear = safeFormatEthiopianYear(periodEndDate)
-                val (yearFormat, initMonthFormat) = if (startYear != endYear) {
-                    Pair(
-                        safeFormatEthiopianYear(periodEndDate),
-                        safeFormatEthiopianMonthYear(periodStartDate)
-                    )
-                } else {
-                    Pair(
-                        safeFormatEthiopianYear(periodStartDate),
-                        safeFormatEthiopianMonth(periodStartDate))
-                }
-                defaultQuarterlyLabel.format(
-                    quarter(periodType!!, periodId),
-                    yearFormat,
-                    initMonthFormat,
-                    safeFormatEthiopianMonth(periodEndDate))
+            PeriodType.Quarterly -> {
+                val quarterNumber = quarter(periodType!!, periodId)
+                val year = safeFormatEthiopianYear(startDate)
+                val startMonth = safeFormatEthiopianMonth(startDate)
+                val endMonth = safeFormatEthiopianMonth(endDate)
+                defaultQuarterlyLabel.format(quarterNumber, year, startMonth, endMonth)
             }
 
-            PeriodType.FinancialApril, PeriodType.FinancialJuly, PeriodType.FinancialOct -> {
-                FROM_TO_LABEL.format(
-                    safeFormatEthiopianMonthYear(periodStartDate),
-                    safeFormatEthiopianMonthYear(periodEndDate))
-            }
-            PeriodType.Yearly -> {
-                Log.d("PeriodDebug", "Period Start Date (Gregorian): $periodStartDate")
-                safeFormatEthiopianYear(periodStartDate)
-            }
-
-            else -> {
-                Log.d("PeriodDebug", "Period Start Date (Gregorian): $periodStartDate")
-                safeFormatEthiopianDate(periodStartDate)
+            PeriodType.FinancialApril,
+            PeriodType.FinancialJuly,
+            PeriodType.FinancialOct -> {
+                val startEthio = EthiopianDateConverter.gregorianToEthiopian(startDate)
+                val endEthio = EthiopianDateConverter.gregorianToEthiopian(endDate)
+                "${ethiopianMonthNames[startEthio.month - 1]} ${startEthio.year} – " +
+                        "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.year}"
             }
 
+            PeriodType.Yearly -> safeFormatEthiopianYear(startDate)
+
+            else -> safeFormatEthiopianDate(startDate)
         }
-    }
-
-    // ---------- ICU4J Ethiopian Conversion ----------
-
-    private fun gregorianToEthiopian(date: Date): Triple<Int, Int, Int> {
-        val ethCal = EthiopicCalendar()
-        ethCal.time = date
-        val year = ethCal.get(Calendar.YEAR)
-        val month = ethCal.get(Calendar.MONTH) + 1 // ICU months are 0-based
-        val day = ethCal.get(Calendar.DAY_OF_MONTH)
-        return Triple(year, month, day)
     }
 
     // ---------- Formatting Helpers ----------
 
     private fun safeFormatEthiopianDate(date: Date): String {
-        return try {
-            val (year, month, day) = gregorianToEthiopian(date)
-            "${day} ${ethiopianMonthNames[month - 1]}, $year"
-        } catch (e: Exception) {
-            SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date)
-        }
+        val ethioDate = EthiopianDateConverter.gregorianToEthiopian(date)
+        return "${ethioDate.day} ${ethiopianMonthNames[ethioDate.month - 1]}, ${ethioDate.year}"
     }
 
     private fun safeFormatEthiopianDateShort(date: Date): String {
-        return try {
-            val (_, month, day) = gregorianToEthiopian(date)
-            "${day} ${ethiopianMonthNames[month - 1].take(3)}"
-        } catch (e: Exception) {
-            SimpleDateFormat("MMM d", Locale.getDefault()).format(date)
-        }
+        val ethioDate = EthiopianDateConverter.gregorianToEthiopian(date)
+        return "${ethiopianMonthNames[ethioDate.month - 1].take(3)} ${ethioDate.day}"
     }
 
     private fun safeFormatEthiopianMonth(date: Date): String {
-        return try {
-            val (_, month, _) = gregorianToEthiopian(date)
-            ethiopianMonthNames[month - 1]
-        } catch (e: Exception) {
-            SimpleDateFormat("MMM", Locale.getDefault()).format(date)
-        }
-    }
-
-    private fun safeFormatEthiopianMonthShort(date: Date): String {
-        return try {
-            val (_, month, _) = gregorianToEthiopian(date)
-            ethiopianMonthNames[month - 1].take(3)
-        } catch (e: Exception) {
-            SimpleDateFormat("MMM", Locale.getDefault()).format(date)
-        }
+        val ethioDate = EthiopianDateConverter.gregorianToEthiopian(date)
+        return ethiopianMonthNames[ethioDate.month - 1]
     }
 
     private fun safeFormatEthiopianMonthYear(date: Date): String {
-        return try {
-            val (year, month, _) = gregorianToEthiopian(date)
-            "${ethiopianMonthNames[month - 1]} $year"
-        } catch (e: Exception) {
-            SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date)
-        }
-    }
-
-    private fun safeFormatEthiopianMonthYearShort(date: Date): String {
-        return try {
-            val (year, month, _) = gregorianToEthiopian(date)
-            "${ethiopianMonthNames[month - 1].take(3)} $year"
-        } catch (e: Exception) {
-            SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date)
-        }
+        val ethioDate = EthiopianDateConverter.gregorianToEthiopian(date)
+        return "${ethiopianMonthNames[ethioDate.month - 1]} ${ethioDate.year}"
     }
 
     private fun safeFormatEthiopianYear(date: Date): String {
-        return try {
-            val (year, _, _) = gregorianToEthiopian(date)
-            Log.d("EthiopianDateDebug", "Gregorian: $date → Ethiopian: $year")
-            year.toString()
-        } catch (e: Exception) {
-            SimpleDateFormat("yyyy", Locale.getDefault()).format(date)
-        }
+        val ethioDate = EthiopianDateConverter.gregorianToEthiopian(date)
+        return ethioDate.year.toString()
     }
 
     // ---------- Utilities ----------
@@ -266,12 +181,8 @@ class PeriodLabelProvider {
     }
 
     private fun periodIsBetweenYears(startDate: Date, endDate: Date): Boolean {
-        return try {
-            val (startYear, _, _) = gregorianToEthiopian(startDate)
-            val (endYear, _, _) = gregorianToEthiopian(endDate)
-            startYear != endYear
-        } catch (e: Exception) {
-            false
-        }
+        val startYear = EthiopianDateConverter.gregorianToEthiopian(startDate).year
+        val endYear = EthiopianDateConverter.gregorianToEthiopian(endDate).year
+        return startYear != endYear
     }
 }
