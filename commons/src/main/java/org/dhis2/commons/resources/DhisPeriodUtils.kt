@@ -1,11 +1,18 @@
 package org.dhis2.commons.resources
 
+import com.ibm.icu.util.EthiopicCalendar
+import com.ibm.icu.util.ULocale
 import org.apache.commons.text.WordUtils
-import org.dhis2.commons.periods.data.EthiopianDateConverter
 import org.hisp.dhis.android.core.D2
 import org.hisp.dhis.android.core.period.PeriodType
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.regex.Pattern
+
+const val DATE_FORMAT_EXPRESSION = "yyyy-MM-dd"
+const val MONTHLY_FORMAT_EXPRESSION = "MMM yyyy"
+const val YEARLY_FORMAT_EXPRESSION = "yyyy"
+const val SIMPLE_DATE_FORMAT = "dd/MM/yyyy"
 
 class DhisPeriodUtils(
     d2: D2,
@@ -16,41 +23,46 @@ class DhisPeriodUtils(
 
     private val periodHelper = d2.periodModule().periodHelper()
 
-    private val ethiopianMonths = listOf(
-        "Meskerem", "Tikimt", "Hidar", "Tahsas",
-        "Tir", "Yekatit", "Megabit", "Miazia",
-        "Ginbot", "Sene", "Hamle", "Nehase", "Pagume"
-    )
-
     fun getPeriodUIString(periodType: PeriodType?, date: Date, locale: Locale): String {
+        val formattedDate: String
         var periodString = defaultPeriodLabel
-        val period = periodHelper.blockingGetPeriodForPeriodTypeAndDate(periodType ?: PeriodType.Daily, date)
+        val period =
+            periodHelper.blockingGetPeriodForPeriodTypeAndDate(periodType ?: PeriodType.Daily, date)
 
-        // Convert start and end dates to Ethiopian
-        val startEthio = EthiopianDateConverter.gregorianToEthiopian(period.startDate()!!)
-        val endEthio = EthiopianDateConverter.gregorianToEthiopian(period.endDate()!!)
-
-        val formattedDate: String = when (periodType) {
+        when (periodType) {
             PeriodType.Weekly,
             PeriodType.WeeklyWednesday,
             PeriodType.WeeklyThursday,
             PeriodType.WeeklySaturday,
             PeriodType.WeeklySunday -> {
                 periodString = defaultWeeklyLabel
-                periodString.format(
-                    weekOfTheYear(periodType!!, period.periodId()!!),
-                    "${ethiopianMonths[startEthio.month - 1]} ${startEthio.day}, ${startEthio.year}",
-                    "${ethiopianMonths[endEthio.month - 1]} ${endEthio.day}, ${endEthio.year}",
+                formattedDate = periodString.format(
+                    weekOfTheYear(periodType, period.periodId()!!),
+                    ethiopianFormatted(period.startDate()!!),
+                    ethiopianFormatted(period.endDate()!!),
                 )
             }
 
             PeriodType.BiWeekly -> {
                 periodString = defaultBiWeeklyLabel
-                "${ethiopianMonths[startEthio.month - 1]} ${startEthio.day} - " +
-                        "${ethiopianMonths[endEthio.month - 1]} ${endEthio.day}, ${endEthio.year}"
+                val firstWeekPeriod = periodHelper.blockingGetPeriodForPeriodTypeAndDate(
+                    PeriodType.Weekly,
+                    period.startDate()!!,
+                )
+                val secondWeekPeriod = periodHelper.blockingGetPeriodForPeriodTypeAndDate(
+                    PeriodType.Weekly,
+                    period.endDate()!!,
+                )
+                formattedDate = periodString.format(
+                    weekOfTheYear(PeriodType.Weekly, firstWeekPeriod.periodId()!!),
+                    getEthiopianYear(period.startDate()!!),
+                    weekOfTheYear(PeriodType.Weekly, secondWeekPeriod.periodId()!!),
+                    getEthiopianYear(period.endDate()!!),
+                )
             }
 
-            PeriodType.Monthly -> "${ethiopianMonths[startEthio.month - 1]} ${startEthio.year}"
+            PeriodType.Monthly ->
+                formattedDate = getEthiopianMonthYear(period.startDate()!!)
 
             PeriodType.BiMonthly,
             PeriodType.Quarterly,
@@ -59,14 +71,20 @@ class DhisPeriodUtils(
             PeriodType.SixMonthlyApril,
             PeriodType.FinancialApril,
             PeriodType.FinancialJuly,
-            PeriodType.FinancialOct -> {
-                "${ethiopianMonths[startEthio.month ]} ${startEthio.year} - " +
-                        "${ethiopianMonths[endEthio.month - 1]} ${endEthio.year}"
+            PeriodType.FinancialOct -> formattedDate = periodString.format(
+                getEthiopianMonthYear(period.startDate()!!),
+                getEthiopianMonthYear(period.endDate()!!),
+            )
+
+            PeriodType.Yearly -> {
+                val ethYear = getEthiopianYear(period.startDate()!!)
+                formattedDate = (ethYear + 8).toString()  // Converts to Gregorian-style label
             }
 
-            PeriodType.Yearly -> startEthio.year.toString()
 
-            else -> "${startEthio.day} ${ethiopianMonths[startEthio.month - 1]}, ${startEthio.year}"
+
+            else ->
+                formattedDate = ethiopianFormatted(period.startDate()!!)
         }
 
         return WordUtils.capitalize(formattedDate)
@@ -76,5 +94,35 @@ class DhisPeriodUtils(
         val pattern = Pattern.compile(periodType.pattern)
         val matcher = pattern.matcher(periodId)
         return if (matcher.find()) matcher.group(2)?.toInt() ?: 0 else 0
+    }
+
+    private fun toEthiopianDate(date: Date): Triple<Int, Int, Int> {
+        val calendar = EthiopicCalendar(ULocale("am_ET@calendar=ethiopic"))
+        calendar.time = date
+        val year = calendar.get(EthiopicCalendar.YEAR)
+        val month = calendar.get(EthiopicCalendar.MONTH) + 1
+        val day = calendar.get(EthiopicCalendar.DATE)
+        return Triple(year, month, day)
+    }
+
+    private fun ethiopianFormatted(date: Date): String {
+        val (year, month, day) = toEthiopianDate(date)
+        return "$day ${getEthiopianMonthName(month)} $year"
+    }
+
+    private fun getEthiopianYear(date: Date): Int {
+        return toEthiopianDate(date).first
+    }
+
+    private fun getEthiopianMonthYear(date: Date): String {
+        val (year, month, _) = toEthiopianDate(date)
+        return "${getEthiopianMonthName(month)} $year"
+    }
+
+    private fun getEthiopianMonthName(month: Int): String {
+        return listOf(
+            "Meskerem", "Tikimt", "Hidar", "Tahsas", "Tir", "Yekatit",
+            "Megabit", "Miyazya", "Ginbot", "Sene", "Hamle", "Nehase", "Pagume"
+        ).getOrElse(month - 1) { "Pagume" }
     }
 }

@@ -18,6 +18,7 @@ import org.hisp.dhis.android.core.common.State
 import org.hisp.dhis.android.core.enrollment.EnrollmentStatus
 import org.hisp.dhis.mobile.ui.designsystem.component.AdditionalInfoItemColor
 import org.hisp.dhis.mobile.ui.designsystem.theme.TextColor
+import org.dhis2.usescases.teiDashboard.dashboardfragments.teidata.ethcaledar.toEthiopianDateString
 
 class InfoBarMapper(
     val resourceManager: ResourceManager,
@@ -28,6 +29,9 @@ class InfoBarMapper(
         actionCallback: () -> Unit,
         showInfoBar: Boolean = false,
     ): InfoBarUiModel {
+        android.util.Log.d("InfoBarMapper", "map called with showInfoBar = $item, infoBarType = $item")
+
+
         with(item.currentEnrollment) {
             return InfoBarUiModel(
                 type = infoBarType,
@@ -51,6 +55,7 @@ class InfoBarMapper(
         }
     }
 
+
     private fun getText(
         infoBarType: InfoBarType,
         item: DashboardEnrollmentModel,
@@ -69,20 +74,13 @@ class InfoBarMapper(
             }
 
             InfoBarType.FOLLOW_UP -> resourceManager.getString(R.string.marked_follow_up)
+
             InfoBarType.ENROLLMENT_STATUS -> {
-                if (enrollmentStatus == EnrollmentStatus.COMPLETED) {
-                    resourceManager.formatWithEnrollmentLabel(
-                        item.currentProgram().uid(),
-                        R.string.enrollment_completed_V2,
-                        1,
-                    )
-                } else {
-                    resourceManager.formatWithEnrollmentLabel(
-                        item.currentProgram().uid(),
-                        R.string.enrollment_cancelled_V2,
-                        1,
-                    )
-                }
+                val status = enrollmentStatus.name
+                val enrollmentDate =toEthiopianDateString(item.currentEnrollment.enrollmentDate())
+                val incidentDate = toEthiopianDateString(item.currentEnrollment.incidentDate())
+                android.util.Log.d("EthiopianDateDebug", "EnrollmentDatess: $enrollmentDate, IncidentDate: $incidentDate")
+                "Status: $status, Enrollment Date: $enrollmentDate, Incident Date: $incidentDate"
             }
         }
     }
@@ -93,59 +91,32 @@ class InfoBarMapper(
         enrollmentState: State,
         enrollmentStatus: EnrollmentStatus,
     ) {
-        return when (infoBarType) {
+        when (infoBarType) {
             InfoBarType.SYNC -> {
                 if (enrollmentState == State.TO_UPDATE) {
-                    Icon(
-                        imageVector = Icons.Outlined.Sync,
-                        contentDescription = "not synced",
-                        tint = TextColor.OnSurfaceLight,
-                    )
+                    Icon(Icons.Outlined.Sync, contentDescription = "not synced", tint = TextColor.OnSurfaceLight)
                 } else if (enrollmentState == State.WARNING) {
-                    Icon(
-                        imageVector = Icons.Outlined.SyncProblem,
-                        contentDescription = "sync warning",
-                        tint = AdditionalInfoItemColor.WARNING.color,
-                    )
+                    Icon(Icons.Outlined.SyncProblem, contentDescription = "sync warning", tint = AdditionalInfoItemColor.WARNING.color)
                 } else {
-                    Icon(
-                        imageVector = Icons.Outlined.SyncProblem,
-                        contentDescription = "sync error",
-                        tint = AdditionalInfoItemColor.ERROR.color,
-                    )
+                    Icon(Icons.Outlined.SyncProblem, contentDescription = "sync error", tint = AdditionalInfoItemColor.ERROR.color)
                 }
             }
 
             InfoBarType.FOLLOW_UP -> {
-                Icon(
-                    imageVector = Icons.Filled.Flag,
-                    contentDescription = "sync warning",
-                    tint = Color(0xFFFAAD14),
-                )
+                Icon(Icons.Filled.Flag, contentDescription = "follow up", tint = Color(0xFFFAAD14))
             }
 
             InfoBarType.ENROLLMENT_STATUS -> {
                 if (enrollmentStatus == EnrollmentStatus.COMPLETED) {
-                    Icon(
-                        imageVector = Icons.Filled.CheckCircle,
-                        contentDescription = "enrollment complete",
-                        tint = AdditionalInfoItemColor.SUCCESS.color,
-                    )
+                    Icon(Icons.Filled.CheckCircle, contentDescription = "enrollment complete", tint = AdditionalInfoItemColor.SUCCESS.color)
                 } else {
-                    Icon(
-                        imageVector = Icons.Filled.Block,
-                        contentDescription = "enrollment cancelled",
-                        tint = TextColor.OnSurfaceLight,
-                    )
+                    Icon(Icons.Filled.Block, contentDescription = "enrollment cancelled", tint = TextColor.OnSurfaceLight)
                 }
             }
         }
     }
 
-    private fun getActionText(
-        infoBarType: InfoBarType,
-        state: State,
-    ): String? {
+    private fun getActionText(infoBarType: InfoBarType, state: State): String? {
         return when (infoBarType) {
             InfoBarType.SYNC -> {
                 if (state == State.TO_UPDATE) {
@@ -160,11 +131,7 @@ class InfoBarMapper(
         }
     }
 
-    private fun getTextColor(
-        infoBarType: InfoBarType,
-        state: State,
-        enrollmentStatus: EnrollmentStatus,
-    ): Color {
+    private fun getTextColor(infoBarType: InfoBarType, state: State, enrollmentStatus: EnrollmentStatus): Color {
         return when (infoBarType) {
             InfoBarType.SYNC -> {
                 if (state == State.TO_UPDATE) {
@@ -187,11 +154,7 @@ class InfoBarMapper(
         }
     }
 
-    private fun getBackgroundColor(
-        infoBarType: InfoBarType,
-        state: State,
-        enrollmentStatus: EnrollmentStatus,
-    ): Color {
+    private fun getBackgroundColor(infoBarType: InfoBarType, state: State, enrollmentStatus: EnrollmentStatus): Color {
         return when (infoBarType) {
             InfoBarType.SYNC -> {
                 if (state == State.TO_UPDATE) {

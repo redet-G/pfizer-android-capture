@@ -1,5 +1,8 @@
 package org.dhis2.usescases.eventsWithoutRegistration.eventDetails.providers
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material.IconButton
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,7 +13,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import kotlinx.datetime.LocalDate
 import org.dhis2.R
 import org.dhis2.commons.dialogs.bottomsheet.bottomSheetInsets
 import org.dhis2.commons.dialogs.bottomsheet.bottomSheetLowerPadding
@@ -19,173 +21,146 @@ import org.dhis2.commons.extensions.inOrgUnit
 import org.dhis2.commons.resources.ResourceManager
 import org.dhis2.form.model.UiEventType
 import org.dhis2.form.model.UiRenderType
+import org.dhis2.form.ui.ethcalendar.EthiopianDate
+import org.dhis2.form.ui.ethcalendar.EthiopianDateConverter
+import org.dhis2.form.ui.ethcalendar.EthiopianDatePickerDialog
 import org.dhis2.usescases.eventsWithoutRegistration.eventDetails.models.EventCatComboUiModel
 import org.dhis2.usescases.eventsWithoutRegistration.eventDetails.models.EventCoordinates
 import org.dhis2.usescases.eventsWithoutRegistration.eventDetails.models.EventInputDateUiModel
 import org.dhis2.usescases.eventsWithoutRegistration.eventDetails.models.EventOrgUnit
 import org.hisp.dhis.android.core.arch.helpers.GeometryHelper
-import org.hisp.dhis.android.core.arch.helpers.Result
 import org.hisp.dhis.android.core.common.FeatureType
 import org.hisp.dhis.android.core.common.Geometry
-import org.hisp.dhis.android.core.common.ValueType
 import org.hisp.dhis.android.core.period.PeriodType
 import org.hisp.dhis.mobile.ui.designsystem.component.Coordinates
 import org.hisp.dhis.mobile.ui.designsystem.component.DateTimeActionType
 import org.hisp.dhis.mobile.ui.designsystem.component.DropdownInputField
 import org.hisp.dhis.mobile.ui.designsystem.component.DropdownItem
 import org.hisp.dhis.mobile.ui.designsystem.component.InputCoordinate
-import org.hisp.dhis.mobile.ui.designsystem.component.InputDateTime
 import org.hisp.dhis.mobile.ui.designsystem.component.InputDropDown
 import org.hisp.dhis.mobile.ui.designsystem.component.InputOrgUnit
 import org.hisp.dhis.mobile.ui.designsystem.component.InputPolygon
 import org.hisp.dhis.mobile.ui.designsystem.component.InputShellState
-import org.hisp.dhis.mobile.ui.designsystem.component.SelectableDates
-import org.hisp.dhis.mobile.ui.designsystem.component.model.DateTransformation
-import org.hisp.dhis.mobile.ui.designsystem.component.state.InputDateTimeData
-import org.hisp.dhis.mobile.ui.designsystem.component.state.rememberInputDateTimeState
-import java.time.format.DateTimeParseException
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import org.hisp.dhis.mobile.ui.designsystem.component.model.DateTimeVisualTransformation
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.dp
+
+
+
+
+
+import org.dhis2.form.ui.ethcalendar.EthiopianDatePickerDialog
+
 
 @Composable
 fun ProvideInputDate(
     uiModel: EventInputDateUiModel,
     modifier: Modifier = Modifier,
 ) {
-    if (uiModel.showField) {
-        val textSelection =
-            TextRange(if (uiModel.eventDate.dateValue != null) uiModel.eventDate.dateValue.length else 0)
-        var value by remember(uiModel.eventDate.dateValue) {
-            if (uiModel.eventDate.dateValue != null) {
-                mutableStateOf(
-                    TextFieldValue(
-                        formatStoredDateToUI(uiModel.eventDate.dateValue) ?: "",
-                        textSelection,
-                    ),
-                )
-            } else {
-                mutableStateOf(TextFieldValue())
-            }
-        }
+    if (!uiModel.showField) return
 
-        var state by remember {
-            mutableStateOf(getInputState(uiModel.detailsEnabled))
-        }
-        val yearRange = if (uiModel.selectableDates != null) {
-            IntRange(
-                uiModel.selectableDates.initialDate.substring(4, 8).toInt(),
-                uiModel.selectableDates.endDate.substring(4, 8).toInt(),
+    val textSelection = TextRange(uiModel.eventDate.dateValue?.length ?: 0)
+
+    var value by remember(uiModel.eventDate.dateValue) {
+        mutableStateOf(
+            TextFieldValue(
+                uiModel.eventDate.dateValue?.let { storedValue ->
+                    try {
+                        val gregDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(storedValue)
+                        val ethDate = EthiopianDateConverter.gregorianToEthiopian(gregDate)
+                        "${ethDate.day.toString().padStart(2, '0')}/${ethDate.month.toString().padStart(2, '0')}/${ethDate.year}"
+                    } catch (e: Exception) {
+                        ""
+                    }
+                } ?: "",
+                textSelection
             )
-        } else {
-            IntRange(1924, 2124)
-        }
-        val inputState = rememberInputDateTimeState(
-            InputDateTimeData(
-                title = uiModel.eventDate.label ?: "",
-                allowsManualInput = uiModel.allowsManualInput,
-                actionType = DateTimeActionType.DATE,
-                visualTransformation = DateTransformation(),
-                isRequired = uiModel.required,
-                is24hourFormat = uiModel.is24HourFormat,
-                selectableDates = uiModel.selectableDates ?: SelectableDates(
-                    "01011924",
-                    "12312124",
-                ),
-                yearRange = yearRange,
-            ),
-            inputTextFieldValue = value,
-            inputState = state,
-        )
-        InputDateTime(
-            state = inputState,
-            modifier = modifier.testTag(INPUT_EVENT_INITIAL_DATE),
-            onValueChanged = {
-                value = it ?: TextFieldValue()
-                it?.let { dateValue ->
-                    manageActionBasedOnValue(
-                        uiModel = uiModel,
-                        dateString = dateValue.text,
-                    )
-                }
-            },
-            onFocusChanged = { focused ->
-                if (!focused && !isValid(value.text) && state == InputShellState.FOCUSED) {
-                    state = InputShellState.ERROR
-                }
-            },
         )
     }
-}
 
-fun isValidDateFormat(dateString: String): Boolean {
-    return try {
-        when (ValueType.DATE.validator.validate(dateString)) {
-            is Result.Failure -> false
-            is Result.Success -> true
-        }
-    } catch (e: DateTimeParseException) {
-        false
-    }
-}
+    var showPicker by remember { mutableStateOf(false) }
 
-fun manageActionBasedOnValue(uiModel: EventInputDateUiModel, dateString: String) {
-    if (dateString.isEmpty()) {
-        uiModel.onClear?.invoke()
-    } else if (isValidDateFormat(dateString)) {
-        formatUIDateToStored(dateString)?.let { dateValues ->
-            if (uiModel.selectableDates?.let { dateValues.isInRange(it) } == true) {
-                uiModel.onDateSelected(dateValues)
-            } else {
-                uiModel.onError?.invoke()
+    if (showPicker) {
+        val initialDate = uiModel.eventDate.dateValue?.let {
+            try {
+                val gregDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(it)
+                EthiopianDateConverter.gregorianToEthiopian(gregDate)
+            } catch (e: Exception) {
+                EthiopianDateConverter.gregorianToEthiopian(Date())
             }
+        } ?: EthiopianDateConverter.gregorianToEthiopian(Date())
+
+        EthiopianDatePickerDialog(
+            initialDate = initialDate,
+            onDateSelected = { ethDate, gregDate ->
+                val displayText = "${ethDate.day.toString().padStart(2, '0')}/${ethDate.month.toString().padStart(2, '0')}/${ethDate.year}"
+
+                val cal = Calendar.getInstance().apply { time = gregDate }
+                val inputDateValues = InputDateValues(
+                    day = cal.get(Calendar.DAY_OF_MONTH),
+                    month = cal.get(Calendar.MONTH) + 1,
+                    year = cal.get(Calendar.YEAR)
+                )
+
+                value = TextFieldValue(displayText)
+                uiModel.onDateSelected?.invoke(inputDateValues)
+                showPicker = false
+            },
+            onDismiss = { showPicker = false }
+        )
+    }
+
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier,
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+    ) {
+        // Input field with fixed width or fill max width minus icon width
+        androidx.compose.material3.OutlinedTextField(
+            value = value,
+            onValueChange = { },
+            modifier = Modifier
+                .weight(1f)   // fill available space except icon
+                .clickable { showPicker = true },
+            label = { androidx.compose.material3.Text(text = uiModel.eventDate.label ?: "Date") },
+            readOnly = true,
+            enabled = uiModel.detailsEnabled,
+            singleLine = true,
+        )
+
+        // Spacing between input and icon
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(10.dp))
+
+
+        // Icon outside the text field
+        androidx.compose.material3.IconButton(onClick = { showPicker = true }) {
+            androidx.compose.material3.Icon(
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.ic_calendar_v2),
+                contentDescription = "Open Ethiopian Date Picker",
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
+            )
         }
-    } else {
-        uiModel.onError?.invoke()
-    }
-}
-
-fun InputDateValues.isInRange(selectableDates: SelectableDates): Boolean {
-    val format = LocalDate.Format {
-        dayOfMonth()
-        monthNumber()
-        year()
-    }
-    val date = LocalDate(year, month, day)
-    return format.parse(selectableDates.initialDate) <= date &&
-        format.parse(selectableDates.endDate) >= date
-}
-
-private fun isValid(valueString: String) = valueString.length == 8
-
-private fun formatStoredDateToUI(dateValue: String): String? {
-    val components = dateValue.split("/")
-    if (components.size != 3) {
-        return null
-    }
-
-    val year = components[2]
-    val month = if (components[1].length == 1) {
-        "0${components[1]}"
-    } else {
-        components[1]
-    }
-    val day = if (components[0].length == 1) {
-        "0${components[0]}"
-    } else {
-        components[0]
-    }
-
-    return "$day$month$year"
-}
-
-fun formatUIDateToStored(dateValue: String?): InputDateValues? {
-    return if (dateValue?.length != 10) {
-        null
-    } else {
-        val date = LocalDate.Formats.ISO.parse(dateValue)
-        InputDateValues(date.dayOfMonth, date.monthNumber, date.year)
     }
 }
 
 data class InputDateValues(val day: Int, val month: Int, val year: Int)
+
+class EthiopianDateTransformation : DateTimeVisualTransformation {
+    override val maskLength: Int
+        get() = 10 // Format: dd/MM/yyyy → 10 characters
+
+    override fun filter(text: AnnotatedString): TransformedText {
+        // No transformation; return input text as-is
+        return TransformedText(text, OffsetMapping.Identity)
+    }
+}
 
 @Composable
 fun ProvideOrgUnit(
@@ -258,7 +233,9 @@ fun ProvideCategorySelector(
             },
             onItemSelected = { _, newSelectedDropdownItem ->
                 selectedItem = newSelectedDropdownItem.label
-                eventCatComboUiModel.onOptionSelected(selectableOptions.firstOrNull { it.displayName() == newSelectedDropdownItem.label })
+                eventCatComboUiModel.onOptionSelected(
+                    selectableOptions.firstOrNull { it.displayName() == newSelectedDropdownItem.label }
+                )
             },
             fetchItem = { index -> dropdownItems[index] },
             itemCount = dropdownItems.size,
@@ -306,9 +283,7 @@ fun ProvidePeriodSelector(
         legendData = null,
         onFocusChanged = {},
         supportingTextData = null,
-        focusRequester = remember {
-            FocusRequester()
-        },
+        focusRequester = remember { FocusRequester() },
         expanded = false,
     )
 }
@@ -319,9 +294,7 @@ fun ProvideEmptyCategorySelector(
     name: String,
     option: String,
 ) {
-    var selectedItem by remember {
-        mutableStateOf("")
-    }
+    var selectedItem by remember { mutableStateOf("") }
 
     InputDropDown(
         windowInsets = { bottomSheetInsets() },
@@ -341,12 +314,6 @@ fun ProvideEmptyCategorySelector(
         loadOptions = { /*no-op*/ },
         isRequiredField = false,
     )
-}
-
-private fun getInputState(enabled: Boolean) = if (enabled) {
-    InputShellState.UNFOCUSED
-} else {
-    InputShellState.DISABLED
 }
 
 @Composable
@@ -369,7 +336,6 @@ fun ProvideCoordinates(
                     },
                 )
             }
-
             else -> {
                 InputCoordinate(
                     title = resources.getString(R.string.coordinates),
@@ -390,6 +356,12 @@ fun ProvideCoordinates(
     }
 }
 
+private fun getInputState(enabled: Boolean) = if (enabled) {
+    InputShellState.UNFOCUSED
+} else {
+    InputShellState.DISABLED
+}
+
 fun mapGeometry(value: String?, featureType: FeatureType): Coordinates? {
     return value?.let {
         val geometry = Geometry.builder()
@@ -408,8 +380,11 @@ fun willShowCalendar(periodType: PeriodType?): Boolean {
     return (periodType == null || periodType == PeriodType.Daily)
 }
 
-const val INPUT_EVENT_INITIAL_DATE = "INPUT_EVENT_INITIAL_DATE"
-const val EMPTY_CATEGORY_SELECTOR = "EMPTY_CATEGORY_SELECTOR"
-const val CATEGORY_SELECTOR = "CATEGORY_SELECTOR"
-const val DEFAULT_MIN_DATE = "12111924"
-const val DEFAULT_MAX_DATE = "12112124"
+// Constants
+private const val INPUT_EVENT_INITIAL_DATE = "INPUT_EVENT_INITIAL_DATE"
+private const val EMPTY_CATEGORY_SELECTOR = "EMPTY_CATEGORY_SELECTOR"
+private const val CATEGORY_SELECTOR = "CATEGORY_SELECTOR"
+const val DEFAULT_MAX_DATE = "01011917" // 01/01/1917 EC
+const val DEFAULT_MIN_DATE = "30132100" // 30/13/2100 EC
+private const val ETHIOPIAN_MIN_YEAR = 1917
+private const val ETHIOPIAN_MAX_YEAR = 2100

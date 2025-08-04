@@ -450,7 +450,12 @@ fun ProvideByValueType(
             }
         }
 
-        ValueType.AGE -> {
+
+
+// inside your when or function
+                ValueType.AGE -> {
+                    android.util.Log.d("InputFieldProvider", "Rendering ProvideInputAge for field: ${fieldUiModel.uid}")
+
             ProvideInputAge(
                 modifier = modifier,
                 inputStyle = inputStyle,
@@ -460,6 +465,7 @@ fun ProvideByValueType(
                 onNextClicked = onNextClicked,
             )
         }
+
 
         ValueType.MULTI_TEXT -> {
             ProvideMultiSelectionInput(

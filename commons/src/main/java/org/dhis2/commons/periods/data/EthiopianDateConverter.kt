@@ -1,7 +1,8 @@
 package org.dhis2.commons.periods.data
 
-
-
+import com.ibm.icu.util.Calendar
+import com.ibm.icu.util.EthiopicCalendar
+import java.text.SimpleDateFormat
 import java.util.*
 
 data class EthiopianDate(val year: Int, val month: Int, val day: Int) : Comparable<EthiopianDate> {
@@ -20,10 +21,8 @@ data class EthiopianDate(val year: Int, val month: Int, val day: Int) : Comparab
 
         while (true) {
             val maxDays = if (newMonth == 13) {
-                if (newYear % 4 == 3) 6 else 5
-            } else {
-                30
-            }
+                if (isLeapYear(newYear)) 6 else 5
+            } else 30
 
             if (newDay <= maxDays) break
 
@@ -37,120 +36,80 @@ data class EthiopianDate(val year: Int, val month: Int, val day: Int) : Comparab
 
         return EthiopianDate(newYear, newMonth, newDay)
     }
+
+    private fun isLeapYear(year: Int): Boolean {
+        return (year + 1) % 4 == 0
+    }
 }
 
 object EthiopianDateConverter {
-    private const val ETHIOPIAN_EPOCH = 1724220.0 // JD for Meskerem 1, Year 1
 
-    /**
-     * Converts Gregorian date to Ethiopian date
-     */
+    // Gregorian → Ethiopian
     fun gregorianToEthiopian(date: Date): EthiopianDate {
-        val cal = GregorianCalendar().apply { time = date }
-        val jd = gregorianToJD(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH))
-        return jdToEthiopian(jd)
-    }
-
-    /**
-     * Converts Ethiopian date to Gregorian date
-     */
-    fun ethiopianToGregorian(year: Int, month: Int, day: Int): Date {
-        validateEthiopianDate(year, month, day)
-        val jd = ethiopianToJD(year, month, day)
-        val (gYear, gMonth, gDay) = jdToGregorian(jd)
-        return GregorianCalendar(gYear, gMonth - 1, gDay).time
-    }
-
-    private fun validateEthiopianDate(year: Int, month: Int, day: Int) {
-        require(month in 1..13) { "Month must be between 1-13" }
-        require(day > 0) { "Day must be positive" }
-
-        val maxDays = if (month == 13) {
-            if (year % 4 == 3) 6 else 5
-        } else {
-            30
-        }
-        require(day <= maxDays) { "Month $month has maximum $maxDays days" }
-    }
-
-    /**
-     * Converts Gregorian date to Julian Day
-     */
-    private fun gregorianToJD(year: Int, month: Int, day: Int): Double {
-        val a = (14 - month) / 12
-        val y = year + 4800 - a
-        val m = month + 12 * a - 3
-        return day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045.0
-    }
-
-    /**
-     * Converts Julian Day to Gregorian date
-     */
-    private fun jdToGregorian(jd: Double): Triple<Int, Int, Int> {
-        val z = jd + 0.5
-        val w = ((z - 1867216.25) / 36524.25).toInt()
-        val x = (w / 4).toInt()
-        val a = z + 1 + w - x
-        val b = a + 1524
-        val c = ((b - 122.1) / 365.25).toInt()
-        val d = (365.25 * c).toInt()
-        val e = ((b - d) / 30.6001).toInt()
-        val f = (30.6001 * e).toInt()
-        val day = (b - d - f).toInt()
-        val month = if (e < 14) e - 1 else e - 13
-        val year = if (month > 2) c - 4716 else c - 4715
-        return Triple(year, month, day)
-    }
-
-    /**
-     * Converts Julian Day to Ethiopian date
-     */
-    private fun jdToEthiopian(jd: Double): EthiopianDate {
-        val days = jd - ETHIOPIAN_EPOCH
-        val fourYearCycle = (days / 1461).toInt()
-        val remainingDays = (days % 1461).toInt()
-
-        val yearInCycle = remainingDays / 365
-        val year = fourYearCycle * 4 + yearInCycle + 1
-        val dayOfYear = remainingDays % 365
-
-        val month = (dayOfYear / 30) + 1
-        val day = (dayOfYear % 30) + 1+1
-
+        val ethCal = EthiopicCalendar()
+        ethCal.time = date
+        val year = ethCal.get(Calendar.YEAR)
+        val month = ethCal.get(Calendar.MONTH) + 1 // ICU is zero-based
+        val day = ethCal.get(Calendar.DAY_OF_MONTH)
         return EthiopianDate(year, month, day)
     }
 
-    /**
-     * Converts Ethiopian date to Julian Day
-     */
-    private fun ethiopianToJD(year: Int, month: Int, day: Int): Double {
-        val n = (month - 1) * 30 + (day - 1)
-        return ETHIOPIAN_EPOCH + 365 * (year - 1) + (year / 4) + n
+    // Ethiopian → Gregorian
+    fun ethiopianToGregorian(date: EthiopianDate): Date {
+        val ethCal = EthiopicCalendar()
+        ethCal.set(Calendar.ERA, EthiopicCalendar.ERA)
+        ethCal.set(Calendar.YEAR, date.year)
+        ethCal.set(Calendar.MONTH, date.month - 1)
+        ethCal.set(Calendar.DAY_OF_MONTH, date.day)
+        return ethCal.time
     }
 
-    /**
-     * Converts Ethiopian day of year to EthiopianDate
-     */
-    fun dayOfYearToEthiopianDate(year: Int, dayOfYear: Int): EthiopianDate {
-        var remainingDays = dayOfYear
-        var month = 1
+    fun isEthiopianLeapYear(year: Int): Boolean {
+        return (year + 1) % 4 == 0
+    }
 
-        while (true) {
-            val maxDays = if (month == 13) {
-                if (year % 4 == 3) 6 else 5
-            } else {
-                30
-            }
+    fun currentEthiopianYear(): Int {
+        return gregorianToEthiopian(Date()).year
+    }
 
-            if (remainingDays <= maxDays) {
-                return EthiopianDate(year, month, remainingDays)
-            }
+    fun gregorianToEthiopianDate(gregorianDateString: String): EthiopianDate? {
+        return try {
+            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val date = formatter.parse(gregorianDateString)
+            date?.let { gregorianToEthiopian(it) }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
-            remainingDays -= maxDays
-            month++
-            if (month > 13) {
-                return EthiopianDate(year, 13, maxDays)
-            }
+    fun ethiopianToGregorianStringStored(ethiopianDate: EthiopianDate): String {
+        val gregDate = ethiopianToGregorian(ethiopianDate)
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        return formatter.format(gregDate)
+    }
+
+    fun gregorianToEthiopianStringUIFormat(gregorianDateString: String?): String {
+        if (gregorianDateString.isNullOrBlank()) return ""
+        return try {
+            val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(gregorianDateString)
+            if (date != null) {
+                val eth = gregorianToEthiopian(date)
+                "%02d%02d%04d".format(eth.day, eth.month, eth.year)
+            } else ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    fun ethiopianUIFormatToGregorianStringStored(ethiopianUIString: String?): String? {
+        if (ethiopianUIString.isNullOrEmpty() || ethiopianUIString.length != 8) return null
+        return try {
+            val day = ethiopianUIString.substring(0, 2).toInt()
+            val month = ethiopianUIString.substring(2, 4).toInt()
+            val year = ethiopianUIString.substring(4, 8).toInt()
+            ethiopianToGregorianStringStored(EthiopianDate(year, month, day))
+        } catch (e: Exception) {
+            null
         }
     }
 }

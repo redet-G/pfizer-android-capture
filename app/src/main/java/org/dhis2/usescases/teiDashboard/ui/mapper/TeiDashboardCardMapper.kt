@@ -26,6 +26,10 @@ import org.hisp.dhis.mobile.ui.designsystem.component.AvatarStyleData
 import org.hisp.dhis.mobile.ui.designsystem.theme.SurfaceColor
 import java.io.File
 import java.util.Date
+import com.ibm.icu.util.EthiopicCalendar
+import java.text.SimpleDateFormat
+import  org.dhis2.usescases.teiDashboard.dashboardfragments.teidata.ethcaledar.EthiopianDateFormatter
+import java.util.Locale
 
 class TeiDashboardCardMapper(
     val resourceManager: ResourceManager,
@@ -131,12 +135,39 @@ class TeiDashboardCardMapper(
                     color = SurfaceColor.Primary,
                     action = { emailCallback.invoke(it.second.value() ?: "") },
                 )
-            } else {
+            }else if (it.first.valueType() == ValueType.DATE) {
+                val dateString = it.second.value()
+                android.util.Log.d("DOB_Debug", "Raw date string: $dateString")
+                val birthDate: Date? = try {
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateString).also {
+                       android.util.Log.d("DOB_Debug", "Parsed birth date: $it")
+                    }
+                }catch (e: Exception) {
+                    android.util.Log.e("DOB_Debug", "Date parsing failed: ${e.message}")
+                    null
+                }
+
+                val ethiopianDate = EthiopianDateFormatter.format(birthDate)
+                android.util.Log.d("DOB_Debug", "Ethiopian formatted date: $ethiopianDate")
+
                 AdditionalInfoItem(
                     key = it.first.displayFormName(),
-                    value = it.second.value() ?: "-",
+                    value = ethiopianDate ?: "-"
                 )
             }
+
+            else {
+                val key = it.first.displayFormName()
+                val value = it.second.value() ?: "-"
+
+                android.util.Log.d("AdditionalInfoItem", "Key: $key, Value: $value")
+
+                AdditionalInfoItem(
+                    key = key,
+                    value = value,
+                )
+            }
+
         }.toMutableList()
 
         if (item.teiHeader == null) {
@@ -236,11 +267,12 @@ class TeiDashboardCardMapper(
         list.add(
             AdditionalInfoItem(
                 key = incidentDateLabel ?: resourceManager.getString(R.string.incident_date),
-                value = incidentDate.toUi() ?: "-",
+                value = EthiopianDateFormatter.format(incidentDate) ?: "-",
                 isConstantItem = true,
             ),
         )
     }
+
 
     private fun addEnrollmentDate(
         programUid: String,
@@ -255,11 +287,14 @@ class TeiDashboardCardMapper(
                     R.string.enrollment_date_V2,
                     1,
                 ),
-                value = enrollmentDate.toUi() ?: "-",
+                value = EthiopianDateFormatter.format(enrollmentDate) ?: "-",
                 isConstantItem = true,
             ),
         )
     }
+
+
+
 
     private fun List<Pair<TrackedEntityAttribute, TrackedEntityAttributeValue>>.filterAttributes() =
         this.filter { it.first.valueType() != ValueType.IMAGE }

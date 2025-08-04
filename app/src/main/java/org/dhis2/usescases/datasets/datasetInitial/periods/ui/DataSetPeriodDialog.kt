@@ -101,8 +101,7 @@ class DataSetPeriodDialog(
                                     scrollState = scrollState,
                                     onPeriodSelected = { date, label ->
                                         onDateSelectedListener(date, label)
-                                        Log.d("DataSetPeriodDialog", "Selected Gregorian Date: $date")
-                                        Log.d("DataSetPeriodDialog", "Selected Ethiopian Label: $label")
+
                                         dismiss()
                                     },
                                     onDismiss = { dismiss() }

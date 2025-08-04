@@ -6,6 +6,7 @@ import static org.dhis2.mobile.aggregates.ui.constants.DataSetInstanceConstantsK
 import static org.dhis2.mobile.aggregates.ui.constants.DataSetInstanceConstantsKt.INTENT_EXTRA_PERIOD_ID;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.Nullable;
@@ -46,8 +47,6 @@ import java.util.Map;
 import javax.inject.Inject;
 
 import kotlin.Unit;
-import kotlin.jvm.functions.Function1;
-import kotlin.jvm.functions.Function2;
 
 public class DataSetInitialActivity extends ActivityGlobalAbstract implements DataSetInitialContract.View {
 
@@ -91,7 +90,7 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
 
     @Override
     public void setAccessDataWrite(Boolean canWrite) {
-
+        // Your implementation here (if any)
     }
 
     @Override
@@ -99,7 +98,7 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
         binding.setDataSetModel(dataSetInitialModel);
         binding.catComboContainer.removeAllViews();
         selectedCatOptions = new HashMap<>();
-        if (!dataSetInitialModel.categoryComboName().equals("default"))
+        if (!dataSetInitialModel.categoryComboName().equals("default")) {
             for (Category categories : dataSetInitialModel.getCategories()) {
                 selectedCatOptions.put(categories.uid(), null);
                 ItemCategoryComboBinding categoryComboBinding = ItemCategoryComboBinding.inflate(getLayoutInflater(), binding.catComboContainer, false);
@@ -110,8 +109,9 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
                 });
                 binding.catComboContainer.addView(categoryComboBinding.getRoot());
             }
-        else
+        } else {
             presenter.onCatOptionClick(dataSetInitialModel.getCategories().get(0).uid());
+        }
         checkActionVisivbility();
     }
 
@@ -155,18 +155,15 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
             calendar.setTime(date);
             selectedPeriod = calendar.getTime();
 
+            // Log the selectedPeriod to check if it's Gregorian date
+            Log.d("DataSetInitialActivity", "SelectedPeriod (Gregorian): " + selectedPeriod.toString());
+
             String periodLabel = "";
             if (periodType == PeriodType.Daily) {
                 periodLabel = periodUtils.getPeriodUIString(periodType, date, Locale.getDefault());
-
             } else {
                 periodLabel = periodName;
-
             }
-
-
-
-
 
             binding.dataSetPeriodEditText.setText(periodLabel);
 
@@ -178,7 +175,6 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
 
         dialog.show(getSupportFragmentManager(), DataSetPeriodDialog.class.getSimpleName());
     }
-
 
     private void checkCatOptionsAreValidForOrgUnit(Date selectedPeriod) {
         int index = 0;
@@ -269,14 +265,12 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
 
     @Override
     public void navigateToDataSetTable(String catOptionCombo, String periodId) {
-            Bundle bundle = new Bundle();
-            bundle.putString(INTENT_EXTRA_DATA_SET_UID, dataSetUid);
-            bundle.putString(INTENT_EXTRA_ORGANISATION_UNIT_UID, selectedOrgUnit.uid());
-            bundle.putString(INTENT_EXTRA_PERIOD_ID, periodId);
-            bundle.putString(INTENT_EXTRA_ATTRIBUTE_OPTION_COMBO_UID, catOptionCombo);
-            startActivity(DataSetInstanceActivity.class, bundle, true, false, null);
-
-
+        Bundle bundle = new Bundle();
+        bundle.putString(INTENT_EXTRA_DATA_SET_UID, dataSetUid);
+        bundle.putString(INTENT_EXTRA_ORGANISATION_UNIT_UID, selectedOrgUnit.uid());
+        bundle.putString(INTENT_EXTRA_PERIOD_ID, periodId);
+        bundle.putString(INTENT_EXTRA_ATTRIBUTE_OPTION_COMBO_UID, catOptionCombo);
+        startActivity(DataSetInstanceActivity.class, bundle, true, false, null);
     }
 
     private void checkActionVisivbility() {
@@ -291,6 +285,5 @@ public class DataSetInitialActivity extends ActivityGlobalAbstract implements Da
         }
 
         binding.actionButton.setVisibility(visible ? View.VISIBLE : View.GONE);
-
     }
 }

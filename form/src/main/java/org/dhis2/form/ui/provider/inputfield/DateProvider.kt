@@ -1,34 +1,39 @@
 package org.dhis2.form.ui.provider.inputfield
 
+import android.util.Log
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import org.dhis2.form.extensions.inputState
-import org.dhis2.form.extensions.legend
+import androidx.compose.ui.unit.dp
+import org.dhis2.form.R
 import org.dhis2.form.extensions.supportingText
 import org.dhis2.form.model.FieldUiModel
+import org.dhis2.form.ui.ethcalendar.EthiopianDate
+import org.dhis2.form.ui.ethcalendar.EthiopianDateConverter
+import org.dhis2.form.ui.ethcalendar.EthiopianDatePickerDialog
 import org.dhis2.form.ui.intent.FormIntent
-import org.hisp.dhis.android.core.common.ValueType
-import org.hisp.dhis.mobile.ui.designsystem.component.DateTimeActionType
-import org.hisp.dhis.mobile.ui.designsystem.component.InputDateTime
 import org.hisp.dhis.mobile.ui.designsystem.component.InputStyle
-import org.hisp.dhis.mobile.ui.designsystem.component.SelectableDates
-import org.hisp.dhis.mobile.ui.designsystem.component.model.DateTimeTransformation
-import org.hisp.dhis.mobile.ui.designsystem.component.model.DateTransformation
-import org.hisp.dhis.mobile.ui.designsystem.component.model.TimeTransformation
-import org.hisp.dhis.mobile.ui.designsystem.component.state.InputDateTimeData
-import org.hisp.dhis.mobile.ui.designsystem.component.state.rememberInputDateTimeState
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 @Composable
 fun ProvideInputDate(
@@ -38,198 +43,124 @@ fun ProvideInputDate(
     intentHandler: (FormIntent) -> Unit,
     onNextClicked: () -> Unit,
 ) {
-    val (actionType, visualTransformation) = when (fieldUiModel.valueType) {
-        ValueType.DATETIME -> DateTimeActionType.DATE_TIME to DateTimeTransformation()
-        ValueType.TIME -> DateTimeActionType.TIME to TimeTransformation()
-        else -> DateTimeActionType.DATE to DateTransformation()
+    var showPicker by remember { mutableStateOf(false) }
+    var displayedDate by remember { mutableStateOf<EthiopianDate?>(null) }
+    var displayText by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Update displayed date from stored value
+    LaunchedEffect(fieldUiModel.value) {
+        try {
+            fieldUiModel.value?.let { storedDate ->
+                val parsedDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(storedDate)
+                parsedDate?.let {
+                    val ethDate = EthiopianDateConverter.gregorianToEthiopian(it)
+                    displayedDate = ethDate
+                    displayText = formatEthiopianDate(ethDate)
+                    errorMessage = null
+                } ?: run {
+                    displayText = ""
+                    errorMessage = "Invalid date format"
+                }
+            } ?: run {
+                displayedDate = null
+                displayText = ""
+                errorMessage = null
+            }
+        } catch (e: Exception) {
+            Log.e("ProvideInputDate", "Error parsing stored date", e)
+            errorMessage = "Invalid date format"
+            displayText = ""
+        }
     }
-    val textSelection = TextRange(
-        fieldUiModel.value?.length ?: 0,
-    )
 
-    val yearIntRange = getYearRange(fieldUiModel)
-    val selectableDates = getSelectableDates(fieldUiModel)
+    // Show Ethiopian Date Picker
+    if (showPicker) {
+        EthiopianDatePickerDialog(
+            initialDate = displayedDate ?: EthiopianDateConverter.gregorianToEthiopian(Date()),
+            onDateSelected = { ethDate, gregDate ->
+                try {
+                    val formattedGregorian = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(gregDate)
+                    displayedDate = ethDate
+                    displayText = formatEthiopianDate(ethDate)
+                    errorMessage = null
 
-    var value by remember(fieldUiModel.value) {
-        mutableStateOf(
-            fieldUiModel.value?.let { value ->
-                TextFieldValue(
-                    formatStoredDateToUI(value, fieldUiModel.valueType),
-                    textSelection,
-                )
-            } ?: TextFieldValue(),
+                    intentHandler(
+                        FormIntent.OnSave(
+                            uid = fieldUiModel.uid,
+                            value = formattedGregorian,
+                            valueType = fieldUiModel.valueType,
+                            allowFutureDates = fieldUiModel.allowFutureDates,
+                        )
+                    )
+                } catch (e: Exception) {
+                    errorMessage = "Failed to save date"
+                    Log.e("ProvideInputDate", "Error saving date", e)
+                } finally {
+                    showPicker = false
+                }
+            },
+            onDismiss = { showPicker = false }
         )
     }
 
-    val inputState = rememberInputDateTimeState(
-        InputDateTimeData(
-            title = fieldUiModel.label,
-            actionType = actionType,
-            visualTransformation = visualTransformation,
-            isRequired = fieldUiModel.mandatory,
-            selectableDates = selectableDates,
-            yearRange = yearIntRange,
-            inputStyle = inputStyle,
-        ),
-        inputTextFieldValue = value,
-        inputState = fieldUiModel.inputState(),
-        legendData = fieldUiModel.legend(),
-        supportingText = fieldUiModel.supportingText(),
-    )
+    // Determine supporting text based on field state
+    val supportingTextContent = when {
+        errorMessage != null -> errorMessage!!
+        fieldUiModel.error != null -> fieldUiModel.error!!
+        fieldUiModel.warning != null -> fieldUiModel.warning!!
+        fieldUiModel.value.isNullOrEmpty() -> fieldUiModel.description ?: ""
+        else -> ""
+    }
 
-    InputDateTime(
-        state = inputState,
-        modifier = modifier.semantics {
-            contentDescription = formatStoredDateToUI(value.text, fieldUiModel.valueType)
-        },
-        onValueChanged = {
-            value = it ?: TextFieldValue()
-            val formIntent = if (value.text.length == 8) {
-                FormIntent.OnSave(
-                    uid = fieldUiModel.uid,
-                    value = formatUIDateToStored(it?.text, fieldUiModel.valueType),
-                    valueType = fieldUiModel.valueType,
-                    allowFutureDates = fieldUiModel.allowFutureDates,
-                )
-            } else {
-                FormIntent.OnTextChange(
-                    uid = fieldUiModel.uid,
-                    value = formatUIDateToStored(it?.text, fieldUiModel.valueType),
-                    valueType = fieldUiModel.valueType,
+    // Styled TextField with proper supporting text handling
+    OutlinedTextField(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .semantics { contentDescription = displayText }
+            .clickable { showPicker = true },
+        readOnly = true,
+        value = TextFieldValue(displayText, TextRange(displayText.length)),
+        onValueChange = {},
+        label = { Text(fieldUiModel.label ?: "") },
+        trailingIcon = {
+            IconButton(onClick = { showPicker = true }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_calendar_v2),
+                    contentDescription = "Select Date",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
-            intentHandler.invoke(formIntent)
         },
-        onNextClicked = onNextClicked,
-    )
-}
-
-private fun getSelectableDates(uiModel: FieldUiModel): SelectableDates {
-    return if (uiModel.selectableDates == null) {
-        if (uiModel.allowFutureDates == true) {
-            SelectableDates(initialDate = DEFAULT_MIN_DATE, endDate = DEFAULT_MAX_DATE)
-        } else {
-            SelectableDates(
-                initialDate = DEFAULT_MIN_DATE,
-                endDate = SimpleDateFormat("ddMMyyyy", Locale.US).format(
-                    Date(System.currentTimeMillis() - 1000),
-                ),
-            )
-        }
-    } else {
-        uiModel.selectableDates ?: SelectableDates(
-            initialDate = DEFAULT_MIN_DATE,
-            endDate = DEFAULT_MAX_DATE,
+        isError = errorMessage != null || fieldUiModel.warning != null || fieldUiModel.error != null,
+        supportingText = {
+            if (supportingTextContent.isNotEmpty()) {
+                Text(
+                    text = supportingTextContent,
+                    color = when {
+                        errorMessage != null || fieldUiModel.error != null ->
+                            MaterialTheme.colorScheme.error
+                        fieldUiModel.warning != null ->
+                            MaterialTheme.colorScheme.errorContainer
+                        else ->
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            errorBorderColor = MaterialTheme.colorScheme.error
         )
-    }
-}
-
-private fun getYearRange(uiModel: FieldUiModel): IntRange {
-    val toYear = when (uiModel.allowFutureDates) {
-        true -> 2124
-        else -> Calendar.getInstance()[Calendar.YEAR]
-    }
-    return IntRange(
-        uiModel.selectableDates?.initialDate?.substring(4, 8)?.toInt() ?: 1924,
-        uiModel.selectableDates?.endDate?.substring(4, 8)?.toInt() ?: toYear,
     )
 }
 
-private fun formatStoredDateToUI(inputDateString: String, valueType: ValueType?): String {
-    return when (valueType) {
-        ValueType.DATETIME -> {
-            val components = inputDateString.split("T")
-            if (components.size != 2) {
-                return inputDateString
-            }
-
-            val date = components[0].split("-")
-            if (date.size != 3) {
-                return inputDateString
-            }
-
-            val year = date[0]
-            val month = date[1]
-            val day = date[2]
-
-            val time = components[1].split(":")
-            if (components.size != 2) {
-                return inputDateString
-            }
-
-            val hours = time[0]
-            val minutes = time[1]
-
-            "$day$month$year$hours$minutes"
-        }
-
-        ValueType.TIME -> {
-            val components = inputDateString.split(":")
-            if (components.size != 2) {
-                return inputDateString
-            }
-
-            val hours = components[0]
-            val minutes = components[1]
-
-            "$hours$minutes"
-        }
-
-        else -> {
-            val components = inputDateString.split("-")
-            if (components.size != 3) {
-                return inputDateString
-            }
-
-            val year = components[0]
-            val month = components[1]
-            val day = components[2]
-
-            "$day$month$year"
-        }
-    }
+private fun formatEthiopianDate(date: EthiopianDate): String {
+    val day = date.day.toString().padStart(2, '0')
+    val month = date.month.toString().padStart(2, '0')
+    return "$day/$month/${date.year}"
 }
-
-private fun formatUIDateToStored(inputDateString: String?, valueType: ValueType?): String? {
-    return when (valueType) {
-        ValueType.DATETIME -> {
-            if (inputDateString?.length != 12) {
-                inputDateString
-            } else {
-                val minutes = inputDateString.substring(10, 12)
-                val hours = inputDateString.substring(8, 10)
-                val year = inputDateString.substring(4, 8)
-                val month = inputDateString.substring(2, 4)
-                val day = inputDateString.substring(0, 2)
-
-                "$year-$month-$day" + "T$hours:$minutes"
-            }
-        }
-
-        ValueType.TIME -> {
-            if (inputDateString?.length != 4) {
-                inputDateString
-            } else {
-                val minutes = inputDateString.substring(2, 4)
-                val hours = inputDateString.substring(0, 2)
-
-                "$hours:$minutes"
-            }
-        }
-
-        else -> {
-            if (inputDateString?.length != 8) {
-                inputDateString
-            } else {
-                val year = inputDateString.substring(4, 8)
-                val month = inputDateString.substring(2, 4)
-                val day = inputDateString.substring(0, 2)
-
-                "$year-$month-$day"
-            }
-        }
-    }
-}
-
-const val DEFAULT_MIN_DATE = "12111924"
-const val DEFAULT_MAX_DATE = "12112124"
+const val DEFAULT_MIN_DATE = "1924-09-11"
+const val DEFAULT_MAX_DATE = "2124-09-11"

@@ -7,6 +7,7 @@ buildscript {
         google()
     }
     dependencies {
+
         classpath(libs.gradlePlugin)
         classpath(libs.kotlinPlugin)
         classpath(libs.hiltPlugin)
