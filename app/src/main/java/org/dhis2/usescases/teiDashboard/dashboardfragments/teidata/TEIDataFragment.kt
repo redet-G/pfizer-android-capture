@@ -77,7 +77,7 @@ import org.hisp.dhis.android.core.program.Program
 import org.hisp.dhis.android.core.program.ProgramStage
 import timber.log.Timber
 import javax.inject.Inject
-
+import org.dhis2.usescases.teiDashboard.dashboardfragments.teidata.ethcaledar.toEthiopianDateString
 const val FETCH_EVENTS = "FETCH_EVENTS"
 
 class TEIDataFragment : FragmentGlobalAbstract(), TEIDataContracts.View {
@@ -237,13 +237,26 @@ class TEIDataFragment : FragmentGlobalAbstract(), TEIDataContracts.View {
         binding.detailCard.setContent {
             if (isUserLoggedIn()) {
                 val dashboardModel by dashboardViewModel.dashboardModel.observeAsState()
+
+                // Log enrollment info if dashboardModel is DashboardEnrollmentModel
+                (dashboardModel as? DashboardEnrollmentModel)?.let { enrollmentModel ->
+                    val enrollmentDate = enrollmentModel.currentEnrollment.enrollmentDate()
+                    val incidentDate = enrollmentModel.currentEnrollment.incidentDate()
+
+                    android.util.Log.d(
+                        "EnrollmentInfo",
+                        "Status: ${enrollmentModel.currentEnrollment.status()}, " +
+                                "Enrollment Date: ${toEthiopianDateString(enrollmentDate)}, " +
+                                "Incident Date: ${toEthiopianDateString(incidentDate)}"
+                    )
+
+                }
+
                 val followUp by dashboardViewModel.showFollowUpBar.collectAsState()
                 val syncNeeded by dashboardViewModel.syncNeeded.collectAsState()
                 val enrollmentStatus by dashboardViewModel.showStatusBar.collectAsState()
                 val groupingEvents by dashboardViewModel.groupByStage.observeAsState()
-                val displayEventCreationButton by presenter.shouldDisplayEventCreationButton.observeAsState(
-                    false,
-                )
+                val displayEventCreationButton by presenter.shouldDisplayEventCreationButton.observeAsState(false)
                 val eventCount by presenter.events.map { it.count() }.observeAsState(0)
 
                 val syncInfoBar = dashboardModel.takeIf { it is DashboardEnrollmentModel }?.let {
@@ -255,26 +268,35 @@ class TEIDataFragment : FragmentGlobalAbstract(), TEIDataContracts.View {
                     )
                 }
 
-                val followUpInfoBar =
-                    dashboardModel.takeIf { it is DashboardEnrollmentModel }?.let {
-                        infoBarMapper.map(
-                            infoBarType = InfoBarType.FOLLOW_UP,
-                            item = dashboardModel as DashboardEnrollmentModel,
-                            actionCallback = {
-                                dashboardViewModel.onFollowUp()
-                            },
-                            showInfoBar = followUp,
-                        )
-                    }
-                val enrollmentInfoBar =
-                    dashboardModel.takeIf { it is DashboardEnrollmentModel }?.let {
-                        infoBarMapper.map(
-                            infoBarType = InfoBarType.ENROLLMENT_STATUS,
-                            item = dashboardModel as DashboardEnrollmentModel,
-                            actionCallback = { },
-                            showInfoBar = enrollmentStatus != EnrollmentStatus.ACTIVE,
-                        )
-                    }
+                val followUpInfoBar = dashboardModel.takeIf { it is DashboardEnrollmentModel }?.let {
+                    infoBarMapper.map(
+                        infoBarType = InfoBarType.FOLLOW_UP,
+                        item = dashboardModel as DashboardEnrollmentModel,
+                        actionCallback = {
+                            dashboardViewModel.onFollowUp()
+                        },
+                        showInfoBar = followUp,
+                    )
+                }
+
+                val enrollmentInfoBar = dashboardModel.takeIf { it is DashboardEnrollmentModel }?.let {
+                    val enrollmentModel = dashboardModel as DashboardEnrollmentModel
+
+                    val enrollmentDateEth = toEthiopianDateString(enrollmentModel.currentEnrollment.enrollmentDate())
+                    val incidentDateEth = toEthiopianDateString(enrollmentModel.currentEnrollment.incidentDate())
+
+                    android.util.Log.d("ETHDateDebug", "Status: ${enrollmentModel.currentEnrollment.status()}, " +
+                            "Enrollment Date (ETH): $enrollmentDateEth, Incident Date (ETH): $incidentDateEth")
+
+                    infoBarMapper.map(
+                        infoBarType = InfoBarType.ENROLLMENT_STATUS,
+                        item = enrollmentModel,
+                        actionCallback = { },
+                        showInfoBar = enrollmentModel.currentEnrollment.status() != EnrollmentStatus.ACTIVE,
+                    )
+                }
+
+
 
                 val card = dashboardModel?.let {
                     teiDashboardCardMapper.map(
@@ -285,7 +307,6 @@ class TEIDataFragment : FragmentGlobalAbstract(), TEIDataContracts.View {
                                 title = null,
                                 imagePath = fileToShow.path,
                             )
-
                             startActivity(intent)
                         },
                         phoneCallback = { openChooser(it, Intent.ACTION_DIAL) },
@@ -332,7 +353,6 @@ class TEIDataFragment : FragmentGlobalAbstract(), TEIDataContracts.View {
             }
         }
     }
-
     private fun onQuickAction(quickActionType: QuickActionType) {
         val teiDashboardActivity = activity as TeiDashboardMobileActivity
         when (quickActionType) {

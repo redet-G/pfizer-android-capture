@@ -1,5 +1,6 @@
 [versions]
 icu4j = "77.1"
+icu4jVersion = "71.1"
 kotlinxDatetime = "0.6.2"
 sdk = "36"
 minSdk = "21"
@@ -97,7 +98,10 @@ ktxml = "0.3.2"
 atomicfu = "0.27.0"
 [libraries]
 gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "gradle" }
+#noinspection SimilarGradleDependency
 icu4j = { module = "com.ibm.icu:icu4j", version.ref = "icu4j" }
+#noinspection SimilarGradleDependency
+icu4j-v711 = { module = "com.ibm.icu:icu4j", version.ref = "icu4jVersion" }
 kotlinPlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlinSerialization = { group = "org.jetbrains.kotlin", name = "kotlin-serialization", version.ref = "kotlin" }
 hiltPlugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }

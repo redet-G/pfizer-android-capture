@@ -9,43 +9,42 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.DialogProperties
-import com.ibm.icu.util.EthiopicCalendar
 import java.util.*
+
+// Your own EthiopianDate data class should be defined somewhere else in the project:
+// data class EthiopianDate(val year: Int, val month: Int, val day: Int)
 
 @Composable
 fun EthiopianDatePickerDialog(
     initialDate: Date = Date(),
     maxYear: Int = 2030,
-    minYear: Int = 1990,
+    minYear: Int = 1976,
     onDateSelected: (Date, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val ethiopianMonthNames = listOf(
-        "Meskerem", "Tikimt", "Hidar", "Tahsas", "Tir", "Yekatit",
-        "Megabit", "Miazia", "Ginbot", "Sene", "Hamle", "Nehase", "Pagume"
+        "Hidar", "Tahsas", "Tir", "Yekatit",
+        "Megabit", "Miazia", "Ginbot", "Sene", "Hamle", "Nehase", "Pagume", "Meskerem", "Tikimt",
     )
 
-    // ✅ Convert initial Gregorian date → Ethiopian using ICU4J
+    // Convert initial Gregorian date to Ethiopian using your own converter
     val initialEthDate = remember(initialDate) {
-        val ethDate = gregorianToEthiopian(initialDate)
+        val ethDate = EthiopianDateConverter.gregorianToEthiopian(initialDate)
         Log.d("EthiopianDatePicker", "Initial Gregorian: $initialDate -> Ethiopian: $ethDate")
         ethDate
     }
 
-    // ✅ Current Ethiopian date for default maxYear logic
+    // Current Ethiopian date for default maxYear logic
     val currentEthDate = remember {
-        gregorianToEthiopian(Date())
+        EthiopianDateConverter.gregorianToEthiopian(Date())
     }
 
-    // Determine starting year (current or maxYear if current is beyond maxYear)
     val startYear = if (currentEthDate.year > maxYear) maxYear else currentEthDate.year
 
-    // State management
     var selectedYear by remember { mutableStateOf(initialEthDate.year.coerceIn(minYear, maxYear)) }
     var selectedMonth by remember { mutableStateOf(initialEthDate.month) }
     var selectedDay by remember { mutableStateOf(initialEthDate.day) }
 
-    // Calculate max days for current month/year
     val maxDays = remember(selectedMonth, selectedYear) {
         if (selectedMonth == 13) {
             if (isEthiopianLeapYear(selectedYear)) 6 else 5
@@ -54,7 +53,6 @@ fun EthiopianDatePickerDialog(
         }
     }
 
-    // Ensure selected day is valid when month/year changes
     LaunchedEffect(maxDays) {
         if (selectedDay > maxDays) {
             selectedDay = maxDays
@@ -72,7 +70,7 @@ fun EthiopianDatePickerDialog(
                     monthNames = ethiopianMonthNames,
                     onMonthSelected = { month ->
                         selectedMonth = month
-                        selectedDay = 1 // Reset to first day when month changes
+                        selectedDay = 1
                     }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -96,10 +94,9 @@ fun EthiopianDatePickerDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val gregorianDate = ethiopianToGregorian(selectedYear, selectedMonth, selectedDay)
+                val gregorianDate = EthiopianDateConverter.ethiopianToGregorian(selectedYear, selectedMonth, selectedDay)
                 val ethiopianDateLabel = "${ethiopianMonthNames[selectedMonth - 1]} $selectedDay, $selectedYear"
 
-                // ✅ Log the final conversion
                 Log.d(
                     "EthiopianDatePicker",
                     "Selected Ethiopian: $selectedYear-$selectedMonth-$selectedDay -> Gregorian: $gregorianDate"
@@ -119,33 +116,10 @@ fun EthiopianDatePickerDialog(
     )
 }
 
-// ✅ Helper functions using ICU4J EthiopicCalendar
-
-fun gregorianToEthiopian(date: Date): EthiopianDate {
-    val cal = EthiopicCalendar()
-    cal.time = date
-    return EthiopianDate(
-        cal.get(EthiopicCalendar.EXTENDED_YEAR),
-        cal.get(EthiopicCalendar.MONTH) + 1, // 0-based months
-        cal.get(EthiopicCalendar.DATE)
-    )
-}
-
-fun ethiopianToGregorian(year: Int, month: Int, day: Int): Date {
-    val cal = EthiopicCalendar().apply {
-        set(EthiopicCalendar.EXTENDED_YEAR, year)
-        set(EthiopicCalendar.MONTH, month - 1)
-        set(EthiopicCalendar.DATE, day)
-    }
-    return cal.time
-}
-
+// Leap year check for Ethiopian calendar based on your Julian logic
 fun isEthiopianLeapYear(year: Int): Boolean {
-    val cal = EthiopicCalendar().apply {
-        set(EthiopicCalendar.EXTENDED_YEAR, year)
-        set(EthiopicCalendar.MONTH, 12) // Pagume (13th month, zero-based index = 12)
-    }
-    return cal.getActualMaximum(EthiopicCalendar.DATE) == 6
+    // Ethiopian leap year occurs every 4 years when year % 4 == 3
+    return year % 4 == 3
 }
 
 
@@ -171,9 +145,7 @@ private fun EthiopianMonthPicker(
                 wrapSelectorWheel = false
             }
         },
-        update = { picker ->
-            picker.value = selectedMonth
-        },
+        update = { picker -> picker.value = selectedMonth },
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)
@@ -225,15 +197,11 @@ private fun EthiopianYearPicker(
                 maxValue = years.size - 1
                 displayedValues = years.map { it.toString() }.toTypedArray()
                 value = years.indexOf(selectedYear)
-                setOnValueChangedListener { _, _, newVal ->
-                    onYearSelected(years[newVal])
-                }
+                setOnValueChangedListener { _, _, newVal -> onYearSelected(years[newVal]) }
                 wrapSelectorWheel = false
             }
         },
-        update = { picker ->
-            picker.value = years.indexOf(selectedYear)
-        },
+        update = { picker -> picker.value = years.indexOf(selectedYear) },
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp)

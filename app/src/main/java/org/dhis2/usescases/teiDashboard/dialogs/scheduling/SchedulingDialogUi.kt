@@ -136,7 +136,7 @@ fun SchedulingDialogUi(
         },
         onDismiss = onDismiss,
 
-    )
+        )
 }
 
 @Composable
@@ -160,8 +160,8 @@ private fun ButtonBlock(
                     modifier = Modifier.fillMaxWidth(),
                     style = ButtonStyle.FILLED,
                     enabled = !scheduleNew ||
-                        date.isValid &&
-                        catCombo.isCompleted,
+                            date.isValid &&
+                            catCombo.isCompleted,
                     text = buttonTitle(scheduleNew),
                     onClick = {
                         when {

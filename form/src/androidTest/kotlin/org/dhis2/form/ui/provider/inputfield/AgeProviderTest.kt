@@ -39,7 +39,6 @@ class AgeProviderTest {
         const val AGE_SELECTOR_TEXT = "6 years"
         const val INPUT_AGE_TEST_TAG = "INPUT_AGE"
         const val FIELD_UI_MODEL_UID = "FieldUIModelUid"
-
     }
 
     @get:Rule

@@ -64,7 +64,8 @@ kotlin {
 
 dependencies {
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
-
+    implementation(libs.icu4j.v711)
+    implementation("org.mnode.ical4j:ical4j:4.1.1")
     implementation(project(":commons"))
     implementation(project(":commonskmm"))
     implementation(project(":dhis2_android_maps"))

@@ -73,7 +73,10 @@ class PeriodLabelProvider {
                         "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.year}"
             }
 
-            PeriodType.Yearly -> safeFormatEthiopianYear(startDate)
+            PeriodType.Yearly -> {
+                Log.d("EthiopianDateDebug", "[TAG] Yearly → Start: $startDate")
+                safeFormatEthiopianYear(startDate)
+            }
 
             else -> safeFormatEthiopianDate(startDate)
         }
@@ -134,7 +137,9 @@ class PeriodLabelProvider {
                         "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.year}"
             }
 
-            PeriodType.Yearly -> safeFormatEthiopianYear(startDate)
+            PeriodType.Yearly ->
+
+                safeFormatEthiopianYear(startDate)
 
             else -> safeFormatEthiopianDate(startDate)
         }
@@ -163,8 +168,9 @@ class PeriodLabelProvider {
     }
 
     private fun safeFormatEthiopianYear(date: Date): String {
-        val ethioDate = EthiopianDateConverter.gregorianToEthiopian(date)
-        return ethioDate.year.toString()
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+        return calendar.get(Calendar.YEAR).toString()
     }
 
     // ---------- Utilities ----------
