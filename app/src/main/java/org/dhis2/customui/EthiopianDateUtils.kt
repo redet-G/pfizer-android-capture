@@ -2,6 +2,7 @@ package org.dhis2.customui
 
 import kotlin.math.min
 import org.hisp.dhis.android.core.period.PeriodType
+import java.text.SimpleDateFormat
 import java.util.*
 
 data class EthiopianPeriod(val startDate: Date, val label: String)
@@ -22,7 +23,7 @@ object EthiopianDateUtils {
         periodType: PeriodType,
         selectedDate: Date? = null,
         openFuturePeriods: Int = 0,
-        minYear: Int = 1990,
+        minYear: Int = 2010,
         displayFromYear: Int? = null
     ): List<EthiopianPeriod> {
         val baseDate = selectedDate ?: Date()
@@ -36,7 +37,7 @@ object EthiopianDateUtils {
             PeriodType.WeeklySunday -> generateCustomWeeklyPeriods(baseEthioDate, currentEthYear, minYear, openFuturePeriods, Calendar.SUNDAY)
             PeriodType.WeeklyWednesday -> generateCustomWeeklyPeriods(baseEthioDate, currentEthYear, minYear, openFuturePeriods, Calendar.WEDNESDAY)
             PeriodType.WeeklyThursday -> generateCustomWeeklyPeriods(baseEthioDate, currentEthYear, minYear, openFuturePeriods, Calendar.THURSDAY)
-            PeriodType.BiWeekly -> generateBiWeeklyPeriods(baseEthioDate, currentEthYear, minYear, openFuturePeriods)
+            PeriodType.BiWeekly -> generateBiWeeklyPeriods(baseEthioDate, minYear, openFuturePeriods)
             PeriodType.Monthly -> generateMonthlyPeriods(baseEthioDate, currentEthYear, minYear, openFuturePeriods)
             PeriodType.BiMonthly -> generateBiMonthlyPeriods(baseEthioDate, currentEthYear, minYear, openFuturePeriods)
             PeriodType.Quarterly -> generateQuarterlyPeriods(baseEthioDate, currentEthYear, minYear, openFuturePeriods)
@@ -129,74 +130,82 @@ object EthiopianDateUtils {
         return periods
     }
 
-    private fun generateBiWeeklyPeriods(
-        baseDate: EthiopianDate,
-        currentYear: Int,
-        minYear: Int,
-        futurePeriods: Int
+    fun generateBiWeeklyPeriods(
+        baseDate: EthiopianDate,   // The current Ethiopian date to calculate up to
+        minYear: Int,              // The start year (e.g. 2010)
+        futurePeriods: Int         // How many future biweeks to generate
     ): List<EthiopianPeriod> {
         val periods = mutableListOf<EthiopianPeriod>()
 
-        // Calculate total days from minYear Meskerem 1 to current date + future periods
+        // Calculate total days from minYear Meskerem 1 up to baseDate plus future biweeks
         val totalDays = calculateTotalDays(baseDate, minYear) + futurePeriods * 14
 
-        var currentDay = 1 // Start from Meskerem 1 of minYear
-        var currentEthDate = EthiopianDate(minYear, 1, 1)
+        var currentDay = 1
+        var currentEthDate = EthiopianDate(minYear, 1, 1)  // Start at Meskerem 1 of minYear
+        var currentYearTracking = minYear
+        var biweekCount = 1
 
         while (currentDay <= totalDays) {
             val startDate = currentEthDate
-            val endDay = min(currentDay + 13, totalDays) // 14-day period (inclusive)
+            val endEthDate = startDate.plus(13)  // 14-day biweek = 13 days after start
 
-            // Calculate end date by adding 13 days to start date
-            val endEthDate = startDate.plus(13)
+            // Reset biweek counter on new Ethiopian year
+            if (startDate.year != currentYearTracking) {
+                biweekCount = 1
+                currentYearTracking = startDate.year
+            }
 
-            val label = buildBiWeeklyLabel(startDate, endEthDate)
+            // Check if Ethiopian year is leap year: (year % 4 == 3)
+            val maxBiweeks = if (currentYearTracking % 4 == 3) 27 else 26
 
-            val gregStartDate = EthiopianDateConverter.ethiopianToGregorian(
-                startDate.year-7,
-                startDate.month,
-                startDate.day
+            // If biweek count exceeds max allowed, jump to next Ethiopian year start
+            if (biweekCount > maxBiweeks) {
+                currentEthDate = EthiopianDate(currentYearTracking + 1, 1, 1)
+                currentDay += 14
+                currentYearTracking += 1
+                biweekCount = 1
+                continue
+            }
+
+            val label = "Biweek $biweekCount: ${formatEthiopianDate(startDate)} - ${formatEthiopianDate(endEthDate)}"
+
+            // Debug log for visibility
+            android.util.Log.d(
+                "BiWeeklyDebug",
+                "Biweek $biweekCount — ETH: ${formatEthiopianDate(startDate)} to ${formatEthiopianDate(endEthDate)}"
             )
-            periods.add(EthiopianPeriod(gregStartDate, label))
 
-            // Move to next biweekly period
+            // Convert Ethiopian date to Gregorian date for storage/display if needed
+            val calendar = Calendar.getInstance()
+            calendar.set(startDate.year, startDate.month - 1, startDate.day)  // Gregorian months are zero-based
+            val fakeGregorianDate = calendar.time
+
+            periods.add(EthiopianPeriod(fakeGregorianDate, label))
+
+            // Move forward 14 days (one biweek)
             currentDay += 14
-            currentEthDate = endEthDate.plus(1)
+            currentEthDate = endEthDate.plus(1)  // next biweek starts after the end day
+            biweekCount++
         }
 
         return periods
     }
 
-    private fun calculateTotalDays(baseDate: EthiopianDate, minYear: Int): Int {
+
+    fun formatEthiopianDate(date: EthiopianDate): String {
+        return "%02d/%02d/%04d".format( date.day,date.month,date.year)
+    }
+
+    fun calculateTotalDays(baseDate: EthiopianDate, minYear: Int): Int {
         var totalDays = 0
         for (year in minYear until baseDate.year) {
             totalDays += if (year % 4 == 3) 366 else 365
         }
-
-        // Add days in current year up to base date
         totalDays += calculateDayOfYear(baseDate)
-
         return totalDays
     }
 
-    private fun buildBiWeeklyLabel(startDate: EthiopianDate, endDate: EthiopianDate): String {
-        return if (startDate.year == endDate.year) {
-            "${ethiopianMonthNames[startDate.month - 1]} ${startDate.day}-" +
-                    "${ethiopianMonthNames[endDate.month - 1]} ${endDate.day}, ${startDate.year}"
-        } else {
-            "${ethiopianMonthNames[startDate.month - 1]} ${startDate.day}, ${startDate.year} - " +
-                    "${ethiopianMonthNames[endDate.month - 1]} ${endDate.day}, ${endDate.year}"
-        }
-    }
-
-
-
-    private fun calculateBiWeekOfYear(date: EthiopianDate): Int {
-        val dayOfYear = calculateDayOfYear(date)
-        return (dayOfYear - 1) / 14 + 1
-    }
-
-    private fun calculateDayOfYear(date: EthiopianDate): Int {
+    fun calculateDayOfYear(date: EthiopianDate): Int {
         var dayOfYear = 0
         for (month in 1 until date.month) {
             dayOfYear += if (month == 13) {
@@ -208,6 +217,17 @@ object EthiopianDateUtils {
         dayOfYear += date.day
         return dayOfYear
     }
+
+
+
+
+
+
+    private fun calculateBiWeekOfYear(date: EthiopianDate): Int {
+        val dayOfYear = calculateDayOfYear(date)
+        return (dayOfYear - 1) / 14 + 1
+    }
+
 
 
 
@@ -374,7 +394,8 @@ object EthiopianDateUtils {
         validateYearlyParameters(currentYear, minYear, futureYears)
 
         return (minYear..currentYear + futureYears).map { year ->
-            val startDate = EthiopianDateConverter.ethiopianToGregorian(year, 1, 1)
+            val startDate = EthiopianDateConverter.ethiopianToGregorian(year-7o
+                , 1, 1)
             EthiopianPeriod(
                 startDate = startDate,
                 label = year.toString()
