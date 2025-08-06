@@ -30,7 +30,7 @@ class PeriodLabelProvider {
             Log.d("EthiopianDateDebug", "PeriodType: $periodType → Start: $periodStartDate, End: $periodEndDate")
             val periodBetweenYears = periodIsBetweenYears(periodStartDate, periodEndDate)
             if (forTags) {
-                tagPeriodLabels(periodType, periodStartDate, periodEndDate, periodBetweenYears)
+                tagPeriodLabels(periodType, periodStartDate, periodEndDate,periodId)
             } else {
                 defaultPeriodLabels(periodType, periodId, periodStartDate, periodEndDate, periodBetweenYears)
             }
@@ -42,20 +42,33 @@ class PeriodLabelProvider {
 
     // ---------- Label Builders ----------
 
-    private fun tagPeriodLabels(
+    fun tagPeriodLabels(
         periodType: PeriodType?,
         startDate: Date,
         endDate: Date,
-        periodBetweenYears: Boolean
+        periodId: String
     ): String {
         return when (periodType) {
-            PeriodType.BiWeekly -> {
-                val startEthio = EthiopianDateConverter.gregorianToEthiopian(startDate)
-                val endEthio = EthiopianDateConverter.gregorianToEthiopian(endDate)
 
-                // Show both full month names
-                "${ethiopianMonthNames[startEthio.month - 1]} ${startEthio.day.toString().padStart(2, '0')} - " +
-                        "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
+            PeriodType.BiWeekly -> {
+                android.util.Log.w("BiWeeklyPeriod", "periodId: $periodId")
+                val match = Regex("(\\d{4})BiW(\\d{1,2})").find(periodId)
+                if (match != null) {
+                    val (year, index) = match.destructured
+                    "Biweek $index, $year"
+                } else {
+                    // Fallback if no periodId match
+                    val startEthio = EthiopianDateConverter.gregorianToEthiopian(startDate)
+                    val endEthio = EthiopianDateConverter.gregorianToEthiopian(endDate)
+
+                    if (startEthio.month == endEthio.month) {
+                        "${ethiopianMonthNames[startEthio.month - 1]} " +
+                                "${startEthio.day.toString().padStart(2, '0')}–${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
+                    } else {
+                        "${ethiopianMonthNames[startEthio.month - 1]} ${startEthio.day.toString().padStart(2, '0')} – " +
+                                "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
+                    }
+                }
             }
 
             PeriodType.Monthly -> safeFormatEthiopianMonthYear(startDate)
@@ -99,20 +112,7 @@ class PeriodLabelProvider {
                 )
             }
 
-            PeriodType.BiWeekly -> {
-                val startEthio = EthiopianDateConverter.gregorianToEthiopian(startDate)
-                val endEthio = EthiopianDateConverter.gregorianToEthiopian(endDate)
 
-                if (startEthio.month == endEthio.month) {
-                    // Same month → Hamle 09–22, 2017
-                    "${ethiopianMonthNames[startEthio.month - 1]} " +
-                            "${startEthio.day.toString().padStart(2, '0')}–${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
-                } else {
-                    // Different months → Hamle 28 – Nehase 10, 2017
-                    "${ethiopianMonthNames[startEthio.month - 1]} ${startEthio.day.toString().padStart(2, '0')} – " +
-                            "${ethiopianMonthNames[endEthio.month - 1]} ${endEthio.day.toString().padStart(2, '0')}, ${endEthio.year}"
-                }
-            }
 
             PeriodType.Monthly -> safeFormatEthiopianMonthYear(startDate)
 

@@ -18,7 +18,7 @@ import java.util.*
 fun EthiopianDatePickerDialog(
     initialDate: Date = Date(),
     maxYear: Int = 2030,
-    minYear: Int = 1976,
+    minYear: Int = 2010,
     onDateSelected: (Date, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
