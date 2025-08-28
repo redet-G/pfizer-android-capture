@@ -46,6 +46,7 @@ import org.dhis2.mobile.aggregates.resources.input_not_supported
 import org.dhis2.mobile.aggregates.resources.no_results_found
 import org.dhis2.mobile.aggregates.resources.search_to_find_more
 import org.dhis2.mobile.aggregates.resources.take_photo
+import org.dhis2.mobile.aggregates.ui.ethcalendar.InputEthiopianDate
 import org.dhis2.mobile.aggregates.ui.states.CellSelectionState.InputDataUiState
 import org.dhis2.mobile.commons.extensions.fileSizeLabel
 import org.dhis2.mobile.commons.extensions.getDateFromAge
@@ -118,10 +119,8 @@ internal fun InputProvider(
     }
 
     val scope = rememberCoroutineScope()
-
     val focusRequester = remember { FocusRequester() }
-    val modifierWithFocus = modifier
-        .focusRequester(focusRequester)
+    val modifierWithFocus = modifier.focusRequester(focusRequester)
 
     LaunchedEffect(inputData) {
         if (inputData.inputType.isText() or inputData.inputType.isNumeric() or inputData.inputType.isDate()) {
@@ -144,7 +143,6 @@ internal fun InputProvider(
                     },
                 )
             }
-
             DisposableEffect(inputData.value) {
                 when (inputType) {
                     is AgeInputType.Age ->
@@ -158,7 +156,6 @@ internal fun InputProvider(
                                 )
                             }
                         }
-
                     is AgeInputType.DateOfBirth ->
                         if (!inputData.value.isNullOrEmpty()) {
                             inputData.value.let {
@@ -170,15 +167,9 @@ internal fun InputProvider(
                                 )
                             }
                         }
-
-                    AgeInputType.None -> {
-                        // no-op
-                    }
+                    AgeInputType.None -> { /* no-op */ }
                 }
-
-                onDispose {
-                    // no-op
-                }
+                onDispose { /* no-op */ }
             }
             InputAge(
                 state = rememberInputAgeState(
@@ -204,10 +195,7 @@ internal fun InputProvider(
                         inputType = ageInputType
                     }
                     val value = when (val type = inputType) {
-                        is AgeInputType.Age -> {
-                            type.value.text.getDateFromAge(type)
-                        }
-
+                        is AgeInputType.Age -> type.value.text.getDateFromAge(type)
                         is AgeInputType.DateOfBirth -> type.value.text
                         else -> null
                     }
@@ -219,7 +207,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.Boolean -> {
             InputYesNoField(
                 title = inputData.label,
@@ -245,7 +232,6 @@ internal fun InputProvider(
                 },
             )
         }
-
         InputType.Coordinates -> {
             InputCoordinate(
                 title = inputData.label,
@@ -267,14 +253,26 @@ internal fun InputProvider(
                         UiAction.OnCaptureCoordinates(
                             cellId = inputData.id,
                             initialData = inputData.value,
-                            locationType = "POINT", // Is always POINT as it is InputCoordinate component
+                            locationType = "POINT",
                         ),
                     )
                 },
             )
         }
-
-        InputType.DateTime, InputType.Date, InputType.Time -> {
+        InputType.Date -> {
+            InputEthiopianDate(
+                title = inputData.label,
+                value = inputData.value,
+                isRequired = inputData.isRequired,
+                enabled = inputData.inputShellState != org.hisp.dhis.mobile.ui.designsystem.component.InputShellState.DISABLED,
+                supportingText = inputData.supportingText?.firstOrNull()?.text,
+                onValueChanged = { newValue ->
+                    onAction(UiAction.OnValueChanged(inputData.id, newValue))
+                },
+                modifier = modifierWithFocus
+            )
+        }
+        InputType.DateTime, InputType.Time -> {
             var dateTextValue by remember(inputData.id) {
                 mutableStateOf(
                     TextFieldValue(
@@ -291,7 +289,6 @@ internal fun InputProvider(
                         imeAction = imeAction,
                         isRequired = inputData.isRequired,
                         actionType = when (inputData.inputType) {
-                            InputType.Date -> DateTimeActionType.DATE
                             InputType.DateTime -> DateTimeActionType.DATE_TIME
                             InputType.Time -> DateTimeActionType.TIME
                             else -> throw IllegalArgumentException("Invalid input type")
@@ -320,7 +317,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.Email -> {
             InputEmail(
                 title = inputData.label,
@@ -348,16 +344,13 @@ internal fun InputProvider(
                 inputStyle = inputData.inputStyle,
             )
         }
-
         InputType.FileResource -> {
             var uploadingState by remember(inputData.fileExtras().fileState) {
                 mutableStateOf(
                     inputData.fileExtras().fileState,
                 )
             }
-
             val file = inputData.fileExtras().filePath?.let { File(it) }
-
             InputFileResource(
                 title = inputData.label,
                 buttonText = stringResource(Res.string.add_file),
@@ -381,10 +374,8 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.Image -> {
             var showImageOptions by remember { mutableStateOf(false) }
-
             val uploadingState by remember(inputData.fileExtras().filePath) {
                 mutableStateOf(
                     when (inputData.fileExtras().filePath) {
@@ -393,9 +384,7 @@ internal fun InputProvider(
                     },
                 )
             }
-
             val painter = inputData.fileExtras().filePath?.toImageBitmap()?.let { BitmapPainter(it) }
-
             InputImage(
                 title = inputData.label,
                 state = inputData.inputShellState,
@@ -414,7 +403,6 @@ internal fun InputProvider(
                 onResetButtonClicked = { onAction(UiAction.OnValueChanged(inputData.id, null)) },
                 onAddButtonClicked = { showImageOptions = true },
             )
-
             ImagePickerOptionsDialog(
                 title = inputData.label,
                 cameraButtonLabel = stringResource(Res.string.take_photo),
@@ -429,7 +417,6 @@ internal fun InputProvider(
                 },
             )
         }
-
         InputType.Integer -> {
             InputInteger(
                 title = inputData.label,
@@ -449,7 +436,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.IntegerNegative -> {
             InputNegativeInteger(
                 title = inputData.label,
@@ -469,7 +455,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.IntegerPositive -> {
             InputPositiveInteger(
                 title = inputData.label,
@@ -489,7 +474,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.IntegerZeroOrPositive -> {
             InputPositiveIntegerOrZero(
                 title = inputData.label,
@@ -509,7 +493,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.Letter -> {
             InputLetter(
                 title = inputData.label,
@@ -531,7 +514,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.LongText -> {
             InputLongText(
                 title = inputData.label,
@@ -551,7 +533,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.OptionSet -> {
             val optionSetExtra = inputData.optionSetExtras()
             var currentSearchQuery by remember(inputData) {
@@ -561,15 +542,14 @@ internal fun InputProvider(
                 derivedStateOf {
                     optionSetExtra.options.filter {
                         currentSearchQuery.isEmpty() or (
-                            it.textInput?.text?.contains(
-                                currentSearchQuery,
-                                true,
-                            ) == true
-                            )
+                                it.textInput?.text?.contains(
+                                    currentSearchQuery,
+                                    true,
+                                ) == true
+                                )
                     }
                 }
             }
-
             if (inputData.value == null && !optionSetExtra.optionsFetched) {
                 LaunchedEffect(inputData) {
                     onAction(UiAction.OnFetchOptions(inputData.id))
@@ -648,19 +628,16 @@ internal fun InputProvider(
                 )
             }
         }
-
         InputType.MultiText -> {
             val multiTextExtras = inputData.multiTextExtras()
             var data: List<CheckBoxData> by remember(inputData) {
                 mutableStateOf(multiTextExtras.options)
             }
-
             LaunchedEffect(multiTextExtras.optionsFetched) {
                 if (!multiTextExtras.optionsFetched) {
                     onAction(UiAction.OnFetchOptions(inputData.id))
                 }
             }
-
             if (inputData.value == null && !multiTextExtras.optionsFetched) {
                 Box(
                     modifier = modifier
@@ -751,7 +728,6 @@ internal fun InputProvider(
                 )
             }
         }
-
         InputType.Number -> {
             InputNumber(
                 title = inputData.label,
@@ -772,7 +748,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.OrganisationUnit -> {
             InputOrgUnit(
                 title = inputData.label,
@@ -792,7 +767,6 @@ internal fun InputProvider(
                 },
             )
         }
-
         InputType.Percentage -> {
             InputPercentage(
                 title = inputData.label,
@@ -812,7 +786,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         is InputType.PhoneNumber -> {
             InputPhoneNumber(
                 title = inputData.label,
@@ -836,7 +809,6 @@ internal fun InputProvider(
                 allowedCharacters = RegExValidations.PHONE_NUMBER,
             )
         }
-
         InputType.Text -> {
             InputText(
                 title = inputData.label,
@@ -856,7 +828,6 @@ internal fun InputProvider(
                 inputStyle = inputData.inputStyle,
             )
         }
-
         InputType.TrueOnly -> {
             InputYesOnlyCheckBox(
                 checkBoxData = CheckBoxData(
@@ -876,7 +847,6 @@ internal fun InputProvider(
                 },
             )
         }
-
         InputType.UnitInterval -> {
             InputUnitInterval(
                 title = inputData.label,
@@ -895,7 +865,6 @@ internal fun InputProvider(
                 modifier = modifierWithFocus,
             )
         }
-
         InputType.Url -> {
             InputLink(
                 title = inputData.label,
@@ -923,12 +892,11 @@ internal fun InputProvider(
                 },
             )
         }
-
         InputType.Username,
         InputType.TrackerAssociate,
         InputType.Reference,
         InputType.GeoJson,
-        -> {
+            -> {
             InputNotSupported(
                 title = inputData.label,
                 modifier = modifierWithFocus,
