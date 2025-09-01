@@ -394,7 +394,7 @@ object EthiopianDateUtils {
         validateYearlyParameters(currentYear, minYear, futureYears)
 
         return (minYear..currentYear + futureYears).map { year ->
-            val startDate = EthiopianDateConverter.ethiopianToGregorian(year-7o
+            val startDate = EthiopianDateConverter.ethiopianToGregorian(year-7
                 , 1, 1)
             EthiopianPeriod(
                 startDate = startDate,
