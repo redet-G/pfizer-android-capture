@@ -35,12 +35,15 @@ import org.dhis2.maps.utils.GeometryCoordinate
 import org.dhis2.maps.utils.addMoveListeners
 import org.dhis2.ui.theme.Dhis2Theme
 import org.hisp.dhis.android.core.common.FeatureType
+import android.location.Location
+import android.widget.Toast
 
 class MapSelectorActivity : AppCompatActivity() {
 
     private val locationProvider = MapLocationEngine(this)
-
+    private var currentGPSLocation: Location? = null
     private val locationListener = LocationListenerCompat { location ->
+        currentGPSLocation=location
         mapSelectorViewModel.onNewLocation(
             SelectedLocation.GPSResult(
                 location.latitude,
@@ -55,6 +58,7 @@ class MapSelectorActivity : AppCompatActivity() {
     var init: Boolean = false
 
     private lateinit var mapManager: DefaultMapManager
+
 
     private val mapSelectorViewModel: MapSelectorViewModel by viewModels<MapSelectorViewModel> {
         Injector.provideMapSelectorViewModelFactory(
@@ -224,12 +228,7 @@ class MapSelectorActivity : AppCompatActivity() {
     }
 
     private fun finishResult(value: GeometryCoordinate) {
-        val intent = Intent()
-        intent.putExtra(FIELD_UID, fieldUid)
-        intent.putExtra(DATA_EXTRA, value)
-        intent.putExtra(LOCATION_TYPE_EXTRA, mapSelectorViewModel.featureType.toString())
-        setResult(RESULT_OK, intent)
-        finish()
+        finishWithCurrentGPS()
     }
 
     companion object {
@@ -256,4 +255,35 @@ class MapSelectorActivity : AppCompatActivity() {
             return intent
         }
     }
+
+    private fun finishWithCurrentGPS() {
+        if (currentGPSLocation == null) {
+            Toast.makeText(
+                this,
+                "GPS location not available. Please wait for location fix.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        val point = com.mapbox.geojson.Point.fromLngLat(
+            currentGPSLocation!!.longitude,
+            currentGPSLocation!!.latitude
+        )
+
+        val geometryCoordinate = org.dhis2.maps.utils.CoordinateUtils.geometryCoordinates(point)
+
+        if (geometryCoordinate == null) {
+            Toast.makeText(this, "Failed to format GPS coordinates", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val intent = Intent()
+        intent.putExtra(FIELD_UID, fieldUid)
+        intent.putExtra(DATA_EXTRA, geometryCoordinate)
+        intent.putExtra(LOCATION_TYPE_EXTRA, mapSelectorViewModel.featureType.toString())
+        setResult(RESULT_OK, intent)
+        finish()
+    }
+
 }
