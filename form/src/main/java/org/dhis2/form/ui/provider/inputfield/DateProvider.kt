@@ -77,6 +77,7 @@ fun ProvideInputDate(
     // Show Ethiopian Date Picker
     if (showPicker) {
         EthiopianDatePickerDialog(
+
             initialDate = displayedDate ?: EthiopianDateConverter.gregorianToEthiopian(Date()),
             onDateSelected = { ethDate, gregDate ->
                 try {

@@ -72,11 +72,16 @@ import org.dhis2.mobile.commons.files.FileHandlerImpl
 import org.hisp.dhis.android.core.common.ValueType
 import org.hisp.dhis.android.core.common.ValueTypeRenderingType
 import org.hisp.dhis.android.core.event.EventStatus
+import org.dhis2.commons.extensions.truncate
+import org.hisp.dhis.android.core.arch.helpers.GeometryHelper
+
 import timber.log.Timber
 import java.io.File
 
 class FormView : Fragment() {
 
+    var requestLocationPermissions: (() -> Unit)? = null
+    var showEnableLocationMessage: (() -> Unit)? = null
     private var onItemChangeListener: ((action: RowAction) -> Unit)? = null
     private var locationProvider: LocationProvider? = null
     private var onLoadingListener: ((loading: Boolean) -> Unit)? = null
@@ -564,11 +569,45 @@ class FormView : Fragment() {
 
     private fun requestLocationByMap(event: RecyclerViewUiEvents.RequestLocationByMap) {
         onActivityForResult?.invoke()
+
+        // 1️⃣ Try to get the current location automatically
+        locationProvider?.getLastKnownLocation(
+            onNewLocation = { location ->
+                val longitude = location.longitude.truncate()
+                val latitude = location.latitude.truncate()
+
+                // Create DHIS2 geometry
+                val geometry = GeometryHelper.createPointGeometry(longitude, latitude)
+
+                // Immediately send current location to the form
+                intentHandler(
+                    FormIntent.SelectLocationFromMap(
+                        event.uid,
+                        "POINT",
+                        geometry.coordinates()
+                    )
+                )
+            },
+            onPermissionNeeded = {
+                requestLocationPermissions?.invoke()
+            },
+            onLocationDisabled = {
+                showEnableLocationMessage?.invoke()
+            }
+        )
+
+        // 2️⃣ Optionally still open map for manual override
         mapContent.launch(
-            MapSelectorActivity
-                .create(requireContext(), event.uid, event.featureType, event.value, programUid),
+            MapSelectorActivity.create(
+                requireContext(),
+                event.uid,
+                event.featureType,
+                event.value,
+                programUid
+            )
         )
     }
+
 
     private fun requestQRScan(event: RecyclerViewUiEvents.ScanQRCode) {
         viewModel.clearFocus()

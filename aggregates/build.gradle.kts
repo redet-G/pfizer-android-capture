@@ -44,11 +44,12 @@ kotlin {
             implementation(libs.compose.material3.window)
             implementation(compose.components.resources)
             implementation(project(":commonskmm"))
-
+            implementation("com.ibm.icu:icu4j:74.1")
             // Koin
             api(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.composeVM)
+            implementation(project(":form"))
         }
         
         commonTest.dependencies {
@@ -61,6 +62,7 @@ kotlin {
             implementation(libs.test.kotlinCoroutines)
             implementation(libs.test.mockitoKotlin)
             implementation(compose.components.resources)
+            implementation(project(":form"))
         }
 
         androidMain.dependencies {
@@ -71,6 +73,7 @@ kotlin {
             implementation(libs.koin.androidx.compose)
             implementation(project(":commons"))
             implementation(project(":dhis2_android_maps"))
+            implementation(project(":form"))
         }
 
         androidUnitTest.dependencies {  }
