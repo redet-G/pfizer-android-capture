@@ -1,4 +1,4 @@
-# Release notes - Android App for DHIS2 - 3.2.1
+# Release notes - Android App for DHIS2 - 3.2.2
 
 ### Bug
 
