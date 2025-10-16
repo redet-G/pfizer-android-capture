@@ -13,4 +13,5 @@
 /gradle.deps
 .kotlin/
 __pycache__/
-*.pyc
+*.pyc*.apk
+*.apk

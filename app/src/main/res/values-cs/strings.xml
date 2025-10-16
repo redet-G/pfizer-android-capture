@@ -1,13 +1,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!--GENERAL-->
     <string name="app_name">Pfizer Track</string>
-    <string name="logo_text">pfizer</string>
+    <string name="logo_text">Pfizer</string>
     <string name="logo_number">2</string>
     <!-- Warnings and error messages -->
     <string name="error">Chyba</string>
     <plurals name="error_message">
         <item quantity="one">Chyba</item>
-        <item quantity="few">Chyby</item>
+        <item quantity="few">Chyby</item>zz
         <item quantity="many">Chyb</item>
         <item quantity="other">Chyb</item>
     </plurals>

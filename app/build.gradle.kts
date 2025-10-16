@@ -43,12 +43,10 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
-            System.getenv("SIGNING_KEYSTORE_PATH")?.let { path ->
-                storeFile = file(path)
-            }
-            storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+            keyAlias = "upload"
+            keyPassword = "estifbezamahi"
+            storeFile = file("/home/stephen/StudioProjects/dhis2-an/upload-keystore.jks")
+            storePassword = "estifbezamahi"
         }
         create("training") {
             keyAlias = System.getenv("TRAINING_KEY_ALIAS")
@@ -228,7 +226,7 @@ android {
                         else -> ""
                     }
 
-                    output.outputFileName = "dhis2-v${libs.versions.vName.get()}$suffix.apk"
+                    output.outputFileName = "Pfizer-track-v${libs.versions.vName.get()}$suffix.apk"
                 }
             }
 
